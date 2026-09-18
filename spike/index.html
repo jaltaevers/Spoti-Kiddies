@@ -14,6 +14,31 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
+    <!--
+      Shown instead of the app when this page is opened as a local file
+      (file://), which the module script below can't detect itself —
+      Chromium refuses to even load an external `type="module"` script
+      over file://, so app.js never runs and the whole page would
+      otherwise stay blank with no explanation. This has to be a plain,
+      non-module script so it still runs in that case.
+    -->
+    <div id="file-protocol-notice" hidden>
+      <h1>Kids Music Tiles — Feasibility Spike</h1>
+      <p>
+        This page was opened directly from a file (the address bar starts
+        with <code>file://</code>), so it can't run — Spotify login, and
+        the rest of this spike, need to be loaded from a real web
+        address.
+      </p>
+      <p>
+        Open the deployed site's <code>/spike/</code> path instead, or
+        serve this folder with a local static server (for example
+        <code>python3 -m http.server</code>) and open the
+        <code>http://127.0.0.1:&lt;port&gt;/spike/</code> address it
+        prints.
+      </p>
+    </div>
+
     <main id="app">
       <section id="login-view" hidden>
         <h1>Kids Music Tiles — Feasibility Spike</h1>
@@ -22,6 +47,23 @@
           this tablet before the real app gets built. See SPIKE.md for what to test.
         </p>
         <button id="login-btn" class="big-btn">Log in with Spotify</button>
+        <div id="redirect-uri-warning" class="warning" hidden></div>
+        <details id="redirect-uri-help" class="redirect-uri-help">
+          <summary>Trouble logging in?</summary>
+          <p class="muted">
+            Spotify checks this page's Redirect URI exactly. If "Log in with
+            Spotify" lands on a Spotify error page instead of the sign-in
+            form, add the address below as a Redirect URI for this app at
+            the <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify Developer Dashboard</a>
+            (Redirect URIs → Add → then <strong>Save</strong> — easy to
+            miss), then try again.
+          </p>
+          <div class="redirect-uri-row">
+            <code id="redirect-uri-value"></code>
+            <button type="button" id="copy-redirect-uri-btn" class="tiny-btn">Copy</button>
+          </div>
+          <p id="redirect-uri-status" class="muted" aria-live="polite"></p>
+        </details>
       </section>
 
       <section id="player-view" hidden>
@@ -66,6 +108,12 @@
       </section>
     </main>
 
+    <script>
+      if (location.protocol === 'file:') {
+        document.getElementById('file-protocol-notice').hidden = false;
+        document.getElementById('app').hidden = true;
+      }
+    </script>
     <script type="module" src="app.js"></script>
   </body>
 </html>

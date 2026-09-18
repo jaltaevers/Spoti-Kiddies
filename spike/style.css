@@ -59,6 +59,21 @@ h1 {
   align-items: stretch;
 }
 
+#file-protocol-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 100vh;
+  padding: 16px;
+  justify-content: center;
+}
+#file-protocol-notice code {
+  background: var(--surface-2);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.9em;
+}
+
 .status-bar {
   display: flex;
   flex-wrap: wrap;
@@ -144,6 +159,51 @@ h1 {
   background: var(--surface-2);
   color: var(--text);
   cursor: pointer;
+}
+
+.warning {
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.redirect-uri-help {
+  font-size: 0.9rem;
+}
+
+.redirect-uri-help summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.redirect-uri-help p {
+  margin: 10px 0;
+}
+
+.redirect-uri-help a {
+  color: var(--accent);
+}
+
+.redirect-uri-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.redirect-uri-row code {
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.85rem;
 }
 
 .now-playing {

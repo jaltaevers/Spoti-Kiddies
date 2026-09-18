@@ -97,6 +97,35 @@ els.loginBtn.addEventListener('click', () => {
   auth.redirectToLogin(SPOTIFY_CONFIG).catch((e) => logLine('login_redirect_error', { message: e.message }, true));
 });
 
+// Spotify rejects the whole login attempt (its own error page, before ever
+// redirecting back here) when redirect_uri doesn't exactly match a URI
+// registered in the app dashboard — see the "redirect URI mismatch" note in
+// SPIKE.md. Surface the exact value this page is sending, and flag a way
+// it can end up computing one that could never work. (The other known-bad
+// case, opening this page via file://, is handled by the inline script in
+// index.html instead — this module script never even loads under file://,
+// so it can't detect it.)
+(function initRedirectUriHelp() {
+  document.getElementById('redirect-uri-value').textContent = SPOTIFY_CONFIG.redirectUri;
+
+  if (window.location.hostname === 'localhost') {
+    const warningEl = document.getElementById('redirect-uri-warning');
+    warningEl.hidden = false;
+    warningEl.textContent = 'Spotify no longer accepts "localhost" as a Redirect URI. Use the same server at http://127.0.0.1:<port>/spike/ instead, and register that exact address.';
+  }
+
+  document.getElementById('copy-redirect-uri-btn').addEventListener('click', async () => {
+    const statusEl = document.getElementById('redirect-uri-status');
+    try {
+      await navigator.clipboard.writeText(SPOTIFY_CONFIG.redirectUri);
+      statusEl.textContent = 'Copied.';
+    } catch (e) {
+      window.prompt('Copy this address:', SPOTIFY_CONFIG.redirectUri);
+    }
+    setTimeout(() => (statusEl.textContent = ''), 2500);
+  });
+})();
+
 els.logoutBtn.addEventListener('click', () => {
   auth.clearTokens();
   logLine('logged_out', {});

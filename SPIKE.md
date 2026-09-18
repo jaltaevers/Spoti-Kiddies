@@ -20,7 +20,14 @@ you. Come back here once you can load the page.
 not `/spike/index.html` and not `/spike` without the slash.** The redirect
 URI is computed from whatever URL the page is actually loaded at, so if
 that ever drifts from exactly what's registered in the dashboard, login
-will fail with a "redirect URI mismatch" error from Spotify.
+will fail with a "redirect URI mismatch" error from Spotify — and since
+that error comes from Spotify's own page, not this one, it doesn't say
+what actually went wrong. If that happens, the login screen has a
+"Trouble logging in?" section that shows the exact address it's sending,
+to check against the dashboard or copy in directly. Testing locally,
+double check it's `http://127.0.0.1:<port>/spike/` — Spotify no longer
+accepts `localhost` as a Redirect URI at all (see the Sept 2026 docs
+notes below), even if your dev server's own default is `localhost`.
 
 You'll also need a **track URI** to test with: in the Spotify app, open a
 track's "…" menu → Share → Copy Song Link, and paste the resulting

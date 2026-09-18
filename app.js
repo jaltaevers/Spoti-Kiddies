@@ -48,6 +48,44 @@ document.getElementById('login-btn').addEventListener('click', () => {
   });
 });
 
+// Spotify rejects the whole login attempt (its own error page, before ever
+// redirecting back here) when redirect_uri doesn't exactly match a URI
+// registered in the app dashboard. This app can't fix that registration —
+// only the dashboard can — so instead it surfaces the exact value it's
+// sending and flags a way this page can end up computing one that could
+// never work, so a parent debugging "login is broken" from this screen
+// isn't stuck guessing. (The other known-bad case, opening this page via
+// file://, is handled by the inline script in index.html instead — this
+// module script never even loads under file://, so it can't detect it.)
+function describeRedirectUriProblem() {
+  if (window.location.hostname === 'localhost') {
+    return 'Spotify no longer accepts "localhost" as a Redirect URI. Use the same server at http://127.0.0.1:<port>/ instead (same page, different address in the bar), and register that exact address.';
+  }
+  return null;
+}
+
+(function initRedirectUriHelp() {
+  document.getElementById('redirect-uri-value').textContent = SPOTIFY_CONFIG.redirectUri;
+
+  const problem = describeRedirectUriProblem();
+  if (problem) {
+    const warningEl = document.getElementById('redirect-uri-warning');
+    warningEl.hidden = false;
+    warningEl.textContent = problem;
+  }
+
+  document.getElementById('copy-redirect-uri-btn').addEventListener('click', async () => {
+    const statusEl = document.getElementById('redirect-uri-status');
+    try {
+      await navigator.clipboard.writeText(SPOTIFY_CONFIG.redirectUri);
+      statusEl.textContent = 'Copied.';
+    } catch (e) {
+      window.prompt('Copy this address:', SPOTIFY_CONFIG.redirectUri);
+    }
+    setTimeout(() => (statusEl.textContent = ''), 2500);
+  });
+})();
+
 let player = null;
 let kidMode = null;
 

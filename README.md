@@ -37,6 +37,27 @@ the spike's:
 That's it — the Client ID is already wired in, and Pages auto-deploys on
 every push, so nothing else is needed.
 
+#### If login still fails with a redirect URI error
+
+Spotify shows its own error page (not this app's) when `redirect_uri`
+doesn't match a registered URI exactly, so a parent debugging this from the
+app itself can't see why. The login screen has a **"Trouble logging in?"**
+section that shows the exact address the app is sending and a button to
+copy it — open that and paste the value straight into the dashboard to
+rule out a typo. Beyond a plain typo, the usual causes are:
+
+- **Trailing slash.** `https://jaltaevers.github.io/Spoti-Kiddies/` and
+  the same address without the trailing slash are different Redirect
+  URIs to Spotify — the one with the slash is the one this app sends.
+- **Not actually saved.** Spotify's dashboard adds the URI to a list when
+  you click "Add", but it isn't applied until you also click **Save** at
+  the bottom of the page.
+- **`localhost` is never accepted**, even if you register it — see
+  "Local dev" below.
+- **Opened as a local file** (double-clicked `index.html` instead of
+  loading it through a server) — there's no valid address to register in
+  that case; see "Local dev" below.
+
 ### First run
 
 With no songs configured yet, opening the site goes straight to parent
@@ -74,7 +95,13 @@ on first use).
 
 `http://127.0.0.1:<port>/` also works for iterating from a computer —
 register that as a Redirect URI too (both `/` and `/spike/` variants, as
-needed) — but isn't required for the deployed site above.
+needed) — but isn't required for the deployed site above. Use
+`127.0.0.1`, not `localhost`: Spotify rejects `localhost` redirect URIs
+outright, even if you register one — so if your dev server's own startup
+message prints a `localhost` URL, swap in `127.0.0.1` before opening it.
+Opening `index.html` straight from disk (a `file://` address) won't work
+either — Spotify has no valid address to redirect back to in that case,
+so it needs to be served over `http://` by something, however minimal.
 
 ## Phase 0 spike (historical)
 

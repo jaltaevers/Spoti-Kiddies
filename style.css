@@ -50,6 +50,21 @@ h2 {
   font-family: 'Baloo 2', ui-rounded, 'Segoe UI', sans-serif;
 }
 
+/* ---------- file:// notice (replaces #app; app.js can't load to hide it itself) ---------- */
+#file-protocol-notice {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+#file-protocol-notice code {
+  background: var(--surface-2);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.9em;
+}
+
 /* ---------- Login ---------- */
 #login-view {
   display: flex;
@@ -98,6 +113,38 @@ h2 {
 .muted {
   color: var(--muted);
   font-size: 0.9rem;
+}
+.redirect-uri-help {
+  margin-top: 20px;
+  text-align: left;
+  font-size: 0.9rem;
+}
+.redirect-uri-help summary {
+  cursor: pointer;
+  color: var(--muted);
+  text-align: center;
+}
+.redirect-uri-help p {
+  margin: 10px 0;
+}
+.redirect-uri-help a {
+  color: var(--accent);
+}
+.redirect-uri-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.redirect-uri-row code {
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.85rem;
 }
 
 /* ---------- Kid mode ---------- */
