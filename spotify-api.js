@@ -153,5 +153,15 @@ export function createSpotifyApi(config, { onReauthRequired } = {}) {
     await request(`/me/player/repeat?state=${mode}&device_id=${encodeURIComponent(deviceId)}`, { method: 'PUT' });
   }
 
-  return { request, getMe, searchTracks, getPlaylistItems, getTracksByIds, setRepeatMode, extractPlaylistId };
+  // Separate from (and in addition to) the SDK's own local player.setVolume():
+  // that call adjusts gain inside this browser tab's own playback pipeline,
+  // while this hits Spotify Connect directly to set the device's volume
+  // server-side. Belt and suspenders — if one path is ever unreliable for a
+  // given browser/SDK version, the other still gets the volume where it
+  // needs to be.
+  async function setDeviceVolume(deviceId, volumePercent) {
+    await request(`/me/player/volume?volume_percent=${Math.round(volumePercent)}&device_id=${encodeURIComponent(deviceId)}`, { method: 'PUT' });
+  }
+
+  return { request, getMe, searchTracks, getPlaylistItems, getTracksByIds, setRepeatMode, setDeviceVolume, extractPlaylistId };
 }

@@ -169,7 +169,7 @@ const parentMode = createParentMode({
     // tile tap — a song already playing when a parent saves stays at
     // whatever volume it started at, which reads as the slider doing
     // nothing if that's the song they were adjusting it for.
-    if (player) player.setVolume(newKidConfig.settings.maxVolume).catch(() => {});
+    if (player) player.setVolume(newKidConfig.settings.maxVolume).catch((e) => console.error('Failed to apply max volume on save', e));
     if (kidMode) kidMode.show();
   },
   getKids: () => store.kids,
@@ -314,6 +314,7 @@ async function initPlayerAndKidMode() {
   kidMode = createKidMode({
     els: {
       grid: document.getElementById('kid-grid'),
+      bgVisualizerCanvas: document.getElementById('kid-bg-visualizer'),
       overlay: document.getElementById('now-playing-overlay'),
       npArt: document.getElementById('np-art'),
       progressBar: document.getElementById('np-progress-bar'),

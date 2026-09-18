@@ -159,6 +159,21 @@ h2 {
   background: linear-gradient(160deg, #fff3e0 0%, #ffe1ec 45%, #dcf2ff 100%);
 }
 
+.kid-bg-visualizer {
+  /* Sits between #kid-mode's own gradient and everything else in kid
+     mode — an ambient glow behind the tiles, never competing with them.
+     Opacity/blur (in visualizer.js's 'ambient-backdrop' variant) already
+     keeps it subtle; z-index here is what keeps it strictly *behind* the
+     grid rather than relying on DOM order, since an absolutely positioned
+     element doesn't naturally stack below a static sibling that follows it. */
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  transition: opacity 0.4s ease;
+}
+
 .kid-greeting {
   /* Now that one device serves multiple kids, this is the only reliable
      "who's up" indicator — the tab/home-screen-icon title is deliberately
@@ -183,6 +198,8 @@ h2 {
 .kid-grid {
   --cols: 2;
   --rows: 2;
+  position: relative;
+  z-index: 1;
   display: grid;
   /* Both sides of minmax are fixed lengths on purpose, not 1fr: a flexible
      1fr track always claims its full equal share of the grid's height/
@@ -357,6 +374,7 @@ h2 {
 .kid-error {
   position: absolute;
   inset: 0;
+  z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -424,6 +442,7 @@ h2 {
   left: 12px;
   right: 12px;
   bottom: 12px;
+  z-index: 2;
   background: #fff;
   border-radius: 28px;
   box-shadow: 0 10px 24px rgba(90, 60, 130, 0.2);

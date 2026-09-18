@@ -1,4 +1,8 @@
-// A classic Winamp-style spectrum analyzer, drawn on a <canvas>.
+// A classic Winamp-style spectrum analyzer, drawn on a <canvas>. Two visual
+// variants share the same signal-generation engine below: 'bar-strip' (the
+// chunky LED-segment bars on the now-playing overlay) and 'ambient-backdrop'
+// (a soft, blurred glow behind the kid-mode tile grid, low-opacity enough
+// that tiles on top stay perfectly legible).
 //
 // This does NOT analyze real audio: the Spotify Web Playback SDK plays
 // through its own DRM-gated pipeline with no accessible <audio> element or
@@ -9,17 +13,50 @@
 // wandering "energy" envelope — shaped to swell and settle the way a real
 // spectrum does, and tied to actual play/pause state via setPlaying() so
 // it goes quiet exactly when the music does.
-const MIN_BARS = 16;
-const MAX_BARS = 48;
-const PX_PER_BAR = 14; // roughly how wide (css px) each bar+gap reads as
-const BAR_FILL_RATIO = 0.72; // fraction of each bar's column it actually fills
-const SEGMENT_STRIDE = 5; // css px between LED-style gap lines
-const SEGMENT_HEIGHT = 1.5;
+
 const FRAME_INTERVAL_MS = 50; // ~20fps — plenty smooth for chunky bars, cheap on battery
-const PEAK_CAP_HEIGHT = 2;
+
+const VARIANTS = {
+  'bar-strip': {
+    minBars: 16,
+    maxBars: 48,
+    pxPerBar: 14, // roughly how wide (css px) each bar+gap reads as
+    barFillRatio: 0.72,
+    heightRatio: 1, // bars can fill the full canvas height
+    gradientStops: [
+      [0, '#00e676'],
+      [0.55, '#ffea00'],
+      [0.8, '#ff9100'],
+      [1, '#ff1744'],
+    ],
+    segmentStride: 5, // css px between LED-style gap lines
+    segmentHeight: 1.5,
+    peakCapHeight: 2,
+    blurPx: 0,
+  },
+  'ambient-backdrop': {
+    minBars: 8,
+    maxBars: 16,
+    pxPerBar: 90,
+    barFillRatio: 1.3, // > 1 so blurred columns overlap into one soft field instead of separate blobs
+    heightRatio: 0.8, // leaves the top of the screen clear
+    gradientStops: [
+      [0, 'rgba(0, 230, 118, 0.4)'],
+      [0.55, 'rgba(255, 234, 0, 0.32)'],
+      [0.8, 'rgba(255, 145, 0, 0.28)'],
+      [1, 'rgba(255, 23, 68, 0.22)'],
+    ],
+    segmentStride: 0, // no LED segmentation — a smooth glow, not a readout
+    segmentHeight: 0,
+    peakCapHeight: 0, // no peak caps — too fine a detail once blurred
+    blurPx: 36,
+  },
+};
+
 const PEAK_FALL_PER_SEC = 0.7; // fraction of full height per second
 
-export function createVisualizer({ canvas }) {
+export function createVisualizer({ canvas, variant = 'bar-strip' }) {
+  const cfg = VARIANTS[variant];
   const ctx = canvas.getContext('2d');
 
   let cssWidth = 0;
@@ -60,14 +97,12 @@ export function createVisualizer({ canvas }) {
     canvas.height = Math.round(cssHeight * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const barCount = Math.max(MIN_BARS, Math.min(MAX_BARS, Math.round(cssWidth / PX_PER_BAR)));
+    const barCount = Math.max(cfg.minBars, Math.min(cfg.maxBars, Math.round(cssWidth / cfg.pxPerBar)));
     bars = Array.from({ length: barCount }, makeBar);
 
-    gradient = ctx.createLinearGradient(0, cssHeight, 0, 0);
-    gradient.addColorStop(0, '#00e676');
-    gradient.addColorStop(0.55, '#ffea00');
-    gradient.addColorStop(0.8, '#ff9100');
-    gradient.addColorStop(1, '#ff1744');
+    const drawHeight = cssHeight * cfg.heightRatio;
+    gradient = ctx.createLinearGradient(0, cssHeight, 0, cssHeight - drawHeight);
+    for (const [stop, color] of cfg.gradientStops) gradient.addColorStop(stop, color);
   }
 
   function step(dt) {
@@ -91,33 +126,43 @@ export function createVisualizer({ canvas }) {
     ctx.clearRect(0, 0, cssWidth, cssHeight);
     if (!bars.length) return;
 
+    const drawHeight = cssHeight * cfg.heightRatio;
     const stride = cssWidth / bars.length;
-    const barWidth = Math.max(1, stride * BAR_FILL_RATIO);
+    const barWidth = Math.max(1, stride * cfg.barFillRatio);
 
+    ctx.save();
+    if (cfg.blurPx) ctx.filter = `blur(${cfg.blurPx}px)`;
     ctx.fillStyle = gradient;
     bars.forEach((bar, i) => {
-      const h = bar.value * cssHeight;
+      const h = bar.value * drawHeight;
       if (h <= 0) return;
       const x = i * stride + (stride - barWidth) / 2;
       ctx.fillRect(x, cssHeight - h, barWidth, h);
     });
-
-    // Cuts transparent gap lines across the filled bars so they read as
-    // segmented LED blocks instead of solid columns.
-    ctx.save();
-    ctx.globalCompositeOperation = 'destination-out';
-    for (let y = cssHeight - SEGMENT_STRIDE; y > 0; y -= SEGMENT_STRIDE) {
-      ctx.fillRect(0, y, cssWidth, SEGMENT_HEIGHT);
-    }
     ctx.restore();
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    bars.forEach((bar, i) => {
-      if (bar.peak <= 0) return;
-      const x = i * stride + (stride - barWidth) / 2;
-      const peakY = Math.max(0, cssHeight - bar.peak * cssHeight - PEAK_CAP_HEIGHT);
-      ctx.fillRect(x, peakY, barWidth, PEAK_CAP_HEIGHT);
-    });
+    // Cuts transparent gap lines across the filled bars so they read as
+    // segmented LED blocks instead of solid columns. Skipped for variants
+    // with no segmentStride (a soft glow has no business looking like a
+    // readout).
+    if (cfg.segmentStride) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+      for (let y = cssHeight - cfg.segmentStride; y > 0; y -= cfg.segmentStride) {
+        ctx.fillRect(0, y, cssWidth, cfg.segmentHeight);
+      }
+      ctx.restore();
+    }
+
+    if (cfg.peakCapHeight) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      bars.forEach((bar, i) => {
+        if (bar.peak <= 0) return;
+        const x = i * stride + (stride - barWidth) / 2;
+        const peakY = Math.max(0, cssHeight - bar.peak * drawHeight - cfg.peakCapHeight);
+        ctx.fillRect(x, peakY, barWidth, cfg.peakCapHeight);
+      });
+    }
   }
 
   function loop(now) {

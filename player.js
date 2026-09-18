@@ -132,8 +132,19 @@ export function createPlayer({ name, getOAuthToken, volume = 1, api }) {
     return withDeviceRetry(() => api.request(`/me/player/previous?device_id=${encodeURIComponent(id)}`, { method: 'POST' }));
   }
 
+  // Sets volume through two independent paths rather than trusting either
+  // alone: the SDK's own player.setVolume() adjusts gain inside this
+  // browser tab's local playback pipeline, while api.setDeviceVolume() hits
+  // Spotify Connect directly to set the device's volume server-side. Errors
+  // are logged rather than swallowed — a silent failure here is exactly
+  // what "the slider doesn't do anything" looks like from the outside, with
+  // nothing to go on for why.
   async function setVolume(value) {
-    if (player) await player.setVolume(Math.max(0, Math.min(1, value)));
+    const clamped = Math.max(0, Math.min(1, value));
+    await Promise.all([
+      player ? player.setVolume(clamped).catch((e) => console.error('SDK setVolume failed', e)) : null,
+      deviceId ? api.setDeviceVolume(deviceId, clamped * 100).catch((e) => console.error('Connect setVolume failed', e)) : null,
+    ]);
   }
 
   async function getState() {
