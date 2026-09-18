@@ -38,7 +38,6 @@ export function createParentMode({
   let searchOffset = 0;
   let searchQuery = '';
   let searchDebounce = null;
-  let currentAccountLabel = null;
 
   function existingUris() {
     return new Set(draft.tiles.map((t) => t.uri));
@@ -102,7 +101,6 @@ export function createParentMode({
   }
 
   function renderAccount(profile) {
-    currentAccountLabel = profile ? profile.display_name || profile.id : null;
     els.accountInfo.textContent = profile ? profile.display_name || profile.id : 'Not logged in';
     const info = getLoginAgeInfo();
     if (info && info.expiringSoon) {
@@ -379,15 +377,16 @@ export function createParentMode({
 
   function describePlaylistError(e) {
     if (e && e.status === 403) {
-      const who = currentAccountLabel ? `“${currentAccountLabel}”` : 'the account logged into this app';
       const detail = extractSpotifyErrorDetail(e.body);
       const said = detail ? ` Spotify’s own message: “${detail}.”` : '';
-      // Deliberately not asserting a single cause here — a 403 on this
-      // endpoint covers a missing OAuth scope and a genuine ownership
-      // mismatch identically otherwise, and guessing between them without
-      // Spotify's own message is exactly what went wrong the first two
-      // times this was diagnosed.
-      return `Can’t read this playlist (error 403).${said} If you haven’t logged in again since playlist reading was added as a permission, try that first (Account → Log in again). If you have, this specifically means ${who} doesn’t own this playlist and isn’t listed as a collaborator on it — check who it’s shared with in the Spotify app, or add songs individually via Search instead.`;
+      // Not a missing scope (checkable directly in Account → Permissions
+      // granted) and not ownership (a fully public playlist 403s exactly
+      // the same way, and ownership can't gate a public one) — both were
+      // ruled out by direct testing, not assumption. What's left is
+      // Spotify's Development Mode blocking playlist-track reads outright
+      // until this app is granted Extended Quota Mode — check this app's
+      // status at developer.spotify.com/dashboard.
+      return `Can’t read this playlist (error 403).${said} This isn’t a login or ownership problem — a fully public playlist fails the same way. It looks like Spotify’s Development Mode is blocking playlist reading for this app entirely until it’s granted Extended Quota Mode (check this app’s status at the Spotify Developer Dashboard). Until then, add songs individually via Search instead — that endpoint isn’t affected.`;
     }
     return (e && e.message) || 'Couldn’t fetch that playlist.';
   }
