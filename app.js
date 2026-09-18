@@ -2,7 +2,7 @@ import { SPOTIFY_CONFIG } from './config.js';
 import * as auth from './auth.js';
 import { createSpotifyApi } from './spotify-api.js';
 import { createPlayer } from './player.js';
-import { loadStore, saveStore, getActiveKid, addKid, removeKid, decodeShareLinkHash, tileFromTrack } from './store.js';
+import { loadStore, saveStore, seedFamilyIfNeeded, getActiveKid, addKid, removeKid, decodeShareLinkHash, tileFromTrack } from './store.js';
 import { createKidMode } from './kid-mode.js';
 import { createParentGate } from './parent-gate.js';
 import { createParentMode } from './parent-mode.js';
@@ -24,7 +24,8 @@ function showOnly(name) {
 // whole device. `getActiveKidConfig` is the single place that resolves
 // "whichever kid is current" — kid mode, parent mode's editor, and the
 // title bar all read through it so they can never disagree about who's up.
-let store = loadStore();
+let store = seedFamilyIfNeeded(loadStore());
+saveStore(store);
 let lastSpotifyProfile = null;
 
 function getActiveKidConfig() {
@@ -259,6 +260,36 @@ async function applyPendingShareLink() {
   }
 }
 
+// Runs once per login, in the background: any kid with a playlist link
+// attached but no songs yet (freshly seeded by seedFamilyIfNeeded, or a
+// kid a parent added and pointed at a playlist without loading it) gets
+// that playlist pulled in automatically, so opening the app after logging
+// in is the only step actually needed — this is also the only place that
+// *can* do it, since it's the first point after login with a real API
+// token to fetch with. Never awaited by its caller: it must not delay
+// showing kid mode or parent mode, and a kid whose fetch fails (offline,
+// playlist not accessible, etc.) is no worse off than before — the same
+// playlist link is still sitting in their Quick Setup box to retry by hand.
+async function autoFetchMissingPlaylists() {
+  const pending = store.kids.filter((k) => k.sourcePlaylistUrl && k.tiles.length === 0);
+  for (const kid of pending) {
+    try {
+      const tracks = await api.getPlaylistItems(kid.sourcePlaylistUrl);
+      const eligible = tracks.filter((t) => !(kid.settings.hideExplicit && t.explicit));
+      if (eligible.length === 0) continue;
+      const tiles = eligible.map((t) => tileFromTrack(t));
+      store = { ...store, kids: store.kids.map((k) => (k.id === kid.id ? { ...k, tiles } : k)) };
+      saveStore(store);
+    } catch (e) {
+      console.error(`Auto-fetch failed for kid "${kid.settings.kidName}"`, e);
+    }
+  }
+  // A kid starting with 0 tiles is never the one main() already routed
+  // into kid mode for, so the only view that can be showing stale data
+  // once this finishes is parent mode's kid-tab bar and editor.
+  if (!views.parent.hidden) refreshParentMode();
+}
+
 async function initPlayerAndKidMode() {
   player = createPlayer({
     name: 'Kids Music Tiles',
@@ -331,6 +362,7 @@ async function main() {
   applyDocumentTitle();
 
   await initPlayerAndKidMode();
+  autoFetchMissingPlaylists(); // fire-and-forget — see its own comment
 
   if (getActiveKidConfig().tiles.length < 1) {
     enterParentMode();

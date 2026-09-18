@@ -81,19 +81,19 @@ function migrateLegacyStore(stored) {
       tileDisplay: legacySettings.tileDisplay || DEFAULT_KID_SETTINGS.tileDisplay,
     },
   };
-  return { kids: [kid], activeKidId: kid.id, pinHash: legacySettings.pinHash || null };
+  return { kids: [kid], activeKidId: kid.id, pinHash: legacySettings.pinHash || null, familySeeded: false };
 }
 
 export function loadStore() {
   const stored = readJson(STORAGE_KEY);
   if (!stored) {
     const kid = makeKid('');
-    return { kids: [kid], activeKidId: kid.id, pinHash: null };
+    return { kids: [kid], activeKidId: kid.id, pinHash: null, familySeeded: false };
   }
   if (Array.isArray(stored.kids) && stored.kids.length > 0) {
     const kids = stored.kids.map(normalizeKid);
     const activeKidId = kids.some((k) => k.id === stored.activeKidId) ? stored.activeKidId : kids[0].id;
-    return { kids, activeKidId, pinHash: stored.pinHash || null };
+    return { kids, activeKidId, pinHash: stored.pinHash || null, familySeeded: !!stored.familySeeded };
   }
   return migrateLegacyStore(stored);
 }
@@ -104,7 +104,50 @@ export function saveStore(store) {
     kids: store.kids,
     activeKidId: store.activeKidId,
     pinHash: store.pinHash,
+    familySeeded: !!store.familySeeded,
   });
+}
+
+// One-time seed: the three kids this app was actually built for, with the
+// playlists their parent already had ready — pasted into chat, but never
+// actually reachable from there (no path to fetch real Spotify data
+// without that parent's own logged-in session). Pre-filling the link at
+// least means opening Quick Setup for each kid here just needs one "Load
+// playlist as tiles" tap instead of retyping the name and re-pasting the
+// link. Runs once — the familySeeded flag keeps it from re-adding a kid
+// that's since been renamed or removed on purpose. An existing kid's own
+// tiles and playlist link (if already set) are left untouched.
+const FAMILY_SEED = [
+  { name: 'Rafa', playlistUrl: 'https://open.spotify.com/playlist/0cZMNCeq5IYNIBe4pY5YeA?si=KbvG6clTRv-RVIdWFJHcLg&utm_source=copy-link&pi=ICcMeTSgTMqZj' },
+  { name: 'Alma', playlistUrl: 'https://open.spotify.com/playlist/2fisy00ch7XMPOHFXrlODV?si=6omhWRXNSOavUJvJvvC5mw&utm_source=copy-link&pi=sGV1CDrQRKqwa' },
+  { name: 'Lily', playlistUrl: 'https://open.spotify.com/playlist/7jbCdxWJJSBu0KO8UzbRD5?si=mGiye45DTv6HYJSZy_Qo7A&utm_source=copy-link&pi=x9lQ7FjlR0eiI' },
+];
+
+function isBlankPlaceholderKid(k) {
+  return !k.settings.kidName && k.tiles.length === 0 && !k.sourcePlaylistUrl;
+}
+
+export function seedFamilyIfNeeded(store) {
+  if (store.familySeeded) return store;
+  // loadStore()'s empty-storage case makes one nameless, empty kid just
+  // so there's always something to hand kid-mode/parent-mode — that's a
+  // placeholder, not something the user made, so seeding drops it rather
+  // than leaving it sitting alongside the three real kids.
+  let kids = store.kids.length === 1 && isBlankPlaceholderKid(store.kids[0]) ? [] : store.kids;
+  for (const { name, playlistUrl } of FAMILY_SEED) {
+    const existing = kids.find((k) => (k.settings.kidName || '').trim().toLowerCase() === name.toLowerCase());
+    if (existing) {
+      if (!existing.sourcePlaylistUrl) {
+        kids = kids.map((k) => (k === existing ? { ...k, sourcePlaylistUrl: playlistUrl } : k));
+      }
+    } else {
+      const kid = makeKid(name);
+      kid.sourcePlaylistUrl = playlistUrl;
+      kids = [...kids, kid];
+    }
+  }
+  const activeKidId = kids.some((k) => k.id === store.activeKidId) ? store.activeKidId : kids[0].id;
+  return { ...store, kids, activeKidId, familySeeded: true };
 }
 
 export function getActiveKid(store) {
