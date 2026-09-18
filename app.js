@@ -156,6 +156,7 @@ const parentMode = createParentMode({
     copyLinkBtn: document.getElementById('copy-link-btn'),
     saveStatus: document.getElementById('save-status'),
     doneBtn: document.getElementById('parent-done-btn'),
+    doneBtnBottom: document.getElementById('parent-done-btn-bottom'),
     logoutBtn: document.getElementById('logout-btn'),
     reloginBtn: document.getElementById('relogin-btn'),
   },

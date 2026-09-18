@@ -604,10 +604,12 @@ export function createParentMode({
       setTimeout(() => (els.saveStatus.textContent = ''), 2500);
     });
 
-    els.doneBtn.addEventListener('click', () => {
+    function handleDoneClick() {
       if (hasUnsavedChanges() && !window.confirm('Discard unsaved changes?')) return;
       onDone();
-    });
+    }
+    els.doneBtn.addEventListener('click', handleDoneClick);
+    els.doneBtnBottom.addEventListener('click', handleDoneClick);
 
     els.logoutBtn.addEventListener('click', onLogout);
     els.reloginBtn.addEventListener('click', onRelogin);

@@ -1,10 +1,7 @@
 const TAP_DEBOUNCE_MS = 800;
 const HOLD_MS = 2250; // 75% of the original 3000ms
 const FADE_MS = 30_000;
-// A dustier, more muted palette than a primary-color toybox — still
-// clearly distinct tile-to-tile, but reads as considered rather than a
-// bag of crayons.
-const TILE_PALETTE = ['#C97B63', '#D9A441', '#6F9C82', '#4E8E92', '#5C7FB0', '#8C79B0', '#C4708F'];
+const TILE_PALETTE = ['#FFADAD', '#FFD6A5', '#FDFFB6', '#CAFFBF', '#9BF6FF', '#A0C4FF', '#BDB2FF', '#FFC6FF'];
 const SPARKLES = ['✨', '⭐', '🎉'];
 // Cover mode: album art (or a manual emoji+color override), no text — for
 // kids who recognize songs by photo. Simple mode: an emoji + the song's
