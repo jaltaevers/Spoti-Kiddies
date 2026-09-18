@@ -30,6 +30,11 @@ function isPortrait() {
 
 export function createKidMode({ els, player, getConfig, onOpenParentGate, onToggleVisualizer }) {
   const visualizer = createVisualizer({ canvas: els.visualizerCanvas });
+  // Behind the tile grid, full-screen — unlike the strip above, this isn't
+  // tied to the now-playing overlay being open: it should glow whenever a
+  // song is actually playing, whether or not a kid has the overlay open or
+  // is just looking at the grid.
+  const bgVisualizer = createVisualizer({ canvas: els.bgVisualizerCanvas, variant: 'ambient-backdrop' });
   const lastTapAt = new Map();
   let activeTileIndex = -1;
   // The source of truth for "what's playing" — activeTileIndex is only
@@ -224,17 +229,35 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
   // hideExplicit) but, unlike those, it's flipped from a single tap on the
   // now-playing bar rather than edited as a draft in parent mode and
   // committed with Save — there's nothing to confirm, so it takes effect
-  // and persists immediately, the same way onChangePin does.
-  function refreshVisualizerPanel() {
+  // and persists immediately, the same way onChangePin does. One setting
+  // governs both visual surfaces (the now-playing strip and the tile-grid
+  // backdrop) — it's one feature with two views of the same thing, not two
+  // separate toggles to keep in sync.
+  function refreshVisualizers() {
     const enabled = !!getConfig().settings.showVisualizer;
     els.vizToggleBtn.setAttribute('aria-pressed', String(enabled));
     els.vizToggleBtn.classList.toggle('is-active', enabled);
+
+    // Now-playing strip: only makes sense while that overlay is open.
     if (enabled && !els.overlay.hidden) {
       els.visualizerCanvas.hidden = false;
       visualizer.start();
     } else {
       els.visualizerCanvas.hidden = true;
       visualizer.stop();
+    }
+
+    // Tile-grid backdrop: independent of the overlay — the grid behind
+    // which it sits is visible any time kid mode itself is, whether or not
+    // the now-playing overlay happens to be open. setPlaying() (driven by
+    // the player state listener below) is what makes it glow only while
+    // something's actually playing versus sitting quietly at rest.
+    if (enabled) {
+      els.bgVisualizerCanvas.hidden = false;
+      bgVisualizer.start();
+    } else {
+      els.bgVisualizerCanvas.hidden = true;
+      bgVisualizer.stop();
     }
   }
 
@@ -243,7 +266,7 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
     renderNowPlayingArt();
     startProgressTicker();
     armSleepTimer();
-    refreshVisualizerPanel();
+    refreshVisualizers();
   }
 
   function closeNowPlaying() {
@@ -356,6 +379,7 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
     };
     els.playPause.textContent = state.paused ? '▶' : '⏸';
     visualizer.setPlaying(!state.paused);
+    bgVisualizer.setPlaying(!state.paused);
 
     // "Continue to next tile" queues the whole grid and lets Spotify
     // auto-advance through it on its own — when it does, this is the only
@@ -406,7 +430,7 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
   els.playPause.addEventListener('click', handlePlayPauseTap);
   els.vizToggleBtn.addEventListener('click', () => {
     onToggleVisualizer(!getConfig().settings.showVisualizer);
-    refreshVisualizerPanel();
+    refreshVisualizers();
   });
 
   let resizeDebounce = null;
@@ -415,16 +439,20 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
     resizeDebounce = setTimeout(() => {
       renderGrid();
       visualizer.handleResize();
+      bgVisualizer.handleResize();
     }, 150);
   });
 
   return {
     show() {
       renderGrid();
+      refreshVisualizers();
     },
     hide() {
       closeNowPlaying();
       clearSleepTimer();
+      els.bgVisualizerCanvas.hidden = true;
+      bgVisualizer.stop();
     },
   };
 }
