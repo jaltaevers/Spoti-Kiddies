@@ -1,7 +1,8 @@
 import { tileFromTrack, validateImportedConfig, encodeShareLink, hashPin } from './store.js';
-import { getLoginAgeInfo } from './auth.js';
+import { getLoginAgeInfo, loadTokens } from './auth.js';
 
 const EMOJI_COLOR_DEFAULT = '#5b5bd6';
+const REQUIRED_PLAYLIST_SCOPE = 'playlist-read-private';
 
 export function reorderArray(arr, fromIndex, toIndex) {
   const copy = arr.slice();
@@ -112,6 +113,21 @@ export function createParentMode({
           : 'Your Spotify login may have expired — log in again if playback stops working.';
     } else {
       els.tokenWarning.hidden = true;
+    }
+
+    // A scope is granted (or not) once, at the moment this login was
+    // created — adding playlist-read-private to config.js does nothing
+    // for a session that logged in before that change. Without this
+    // check, that shows up as every single playlist 403ing regardless of
+    // who owns it, which reads exactly like an ownership problem but
+    // isn't one.
+    const tokens = loadTokens();
+    const grantedScopes = (tokens && tokens.scope) || '';
+    const missingPlaylistScope = !grantedScopes.split(' ').includes(REQUIRED_PLAYLIST_SCOPE);
+    els.scopeWarning.hidden = !missingPlaylistScope;
+    if (missingPlaylistScope) {
+      els.scopeWarning.textContent =
+        'This login doesn’t have permission to read playlists yet (added after you first logged in) — tap "Log in again" below to pick it up. No need to log out first.';
     }
   }
 

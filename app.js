@@ -125,6 +125,7 @@ const parentMode = createParentMode({
     volumeValue: document.getElementById('volume-value'),
     accountInfo: document.getElementById('account-info'),
     tokenWarning: document.getElementById('token-warning'),
+    scopeWarning: document.getElementById('scope-warning'),
     tileCount: document.getElementById('tile-count'),
     tileCountWarning: document.getElementById('tile-count-warning'),
     tileList: document.getElementById('tile-list'),

@@ -13,5 +13,11 @@ export const SPOTIFY_CONFIG = {
     'user-read-private',
     'user-read-playback-state',
     'user-modify-playback-state',
+    // Without these, every playlist read 403s regardless of who actually
+    // owns it — a scope grant is checked before ownership even comes into
+    // it. Collaborative is included too since a shared/co-owned playlist
+    // needs it in addition to (not instead of) playlist-read-private.
+    'playlist-read-private',
+    'playlist-read-collaborative',
   ],
 };
