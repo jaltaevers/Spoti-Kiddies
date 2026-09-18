@@ -1,0 +1,518 @@
+:root {
+  color-scheme: dark;
+  --bg: #121212;
+  --surface: #1e1e1e;
+  --surface-2: #262626;
+  --text: #f5f5f5;
+  --muted: #a0a0a0;
+  --accent: #5b5bd6;
+  --accent-active: #4747b0;
+  --danger: #ff6b81;
+  --border: #333;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overscroll-behavior: none;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+#app {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.view {
+  height: 100%;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* ---------- Login ---------- */
+#login-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.login-card {
+  text-align: center;
+  padding: 24px;
+}
+.login-card h1 {
+  margin-bottom: 24px;
+}
+
+.big-btn {
+  font-size: 1.3rem;
+  padding: 22px 36px;
+  border-radius: 18px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+.big-btn:active {
+  background: var(--accent-active);
+}
+.small-btn {
+  font-size: 0.95rem;
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+}
+.small-btn:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+.warning {
+  color: var(--danger);
+  font-size: 0.9rem;
+  margin-top: 8px;
+}
+.muted {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* ---------- Kid mode ---------- */
+#kid-mode {
+  position: relative;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.kid-grid {
+  --cols: 2;
+  --rows: 2;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), 1fr);
+  grid-template-rows: repeat(var(--rows), 1fr);
+  gap: 14px;
+  height: 100%;
+  padding: 14px;
+}
+
+.kid-tile {
+  position: relative;
+  border: none;
+  border-radius: 24px;
+  background-color: var(--surface-2);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  padding: 0;
+  cursor: pointer;
+}
+
+.kid-tile-emoji {
+  font-size: min(12vw, 5rem);
+}
+
+.kid-tile-eq {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  display: none;
+  gap: 3px;
+  align-items: flex-end;
+  height: 20px;
+}
+.kid-tile.is-playing {
+  outline: 6px solid var(--accent);
+  outline-offset: -6px;
+  animation: tile-pulse 1.4s ease-in-out infinite;
+}
+.kid-tile.is-playing .kid-tile-eq {
+  display: flex;
+}
+.kid-tile-eq i {
+  width: 4px;
+  background: #fff;
+  border-radius: 2px;
+  animation: eq-bounce 0.9s ease-in-out infinite;
+}
+.kid-tile-eq i:nth-child(1) {
+  height: 8px;
+  animation-delay: 0s;
+}
+.kid-tile-eq i:nth-child(2) {
+  height: 16px;
+  animation-delay: 0.2s;
+}
+.kid-tile-eq i:nth-child(3) {
+  height: 10px;
+  animation-delay: 0.4s;
+}
+
+@keyframes tile-pulse {
+  0%,
+  100% {
+    outline-color: var(--accent);
+  }
+  50% {
+    outline-color: #fff;
+  }
+}
+@keyframes eq-bounce {
+  0%,
+  100% {
+    transform: scaleY(0.4);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.kid-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--bg);
+}
+.cloud-illustration {
+  width: 220px;
+  height: auto;
+}
+.kid-error-detail {
+  color: var(--muted);
+  font-size: 0.7rem;
+  max-width: 80%;
+  text-align: center;
+}
+
+.parent-gate-btn {
+  /* Top corner, not bottom: the now-playing overlay spans the bottom edge
+     while a song is active, and would otherwise sit on top of this button
+     and make parent mode unreachable while anything is playing. */
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 4px;
+  overflow: hidden;
+  z-index: 5;
+}
+.parent-gate-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: scale(0);
+  transform-origin: center;
+  transition: transform 3s linear;
+}
+.parent-gate-btn.is-holding .parent-gate-fill {
+  transform: scale(1);
+}
+
+.now-playing-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.np-back {
+  font-size: 1.8rem;
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  padding: 4px 10px;
+}
+.np-art {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.np-emoji {
+  font-size: 1.8rem;
+}
+.np-progress {
+  flex: 1;
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.np-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+}
+.np-play-pause {
+  font-size: 1.6rem;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ---------- Parent gate ---------- */
+#parent-gate-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.parent-gate-card {
+  background: var(--surface);
+  border-radius: 20px;
+  padding: 28px;
+  text-align: center;
+  width: min(320px, 90vw);
+}
+.pin-input {
+  font-size: 2rem;
+  letter-spacing: 0.5em;
+  text-align: center;
+  width: 100%;
+  padding: 12px;
+  margin: 16px 0;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.parent-gate-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+/* ---------- Parent mode ---------- */
+#parent-mode-view {
+  height: 100%;
+  overflow-y: auto;
+  padding: 16px;
+  -webkit-user-select: auto;
+  user-select: auto;
+}
+.parent-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.parent-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.parent-section h2 {
+  margin-top: 0;
+  font-size: 1.05rem;
+}
+
+.text-input {
+  width: 100%;
+  font-size: 1rem;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.tile-list,
+.result-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tile-row,
+.result-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface-2);
+  border-radius: 12px;
+  padding: 8px;
+  touch-action: pan-y;
+}
+.tile-row.dragging {
+  opacity: 0.85;
+  z-index: 5;
+  position: relative;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+.drag-handle {
+  cursor: grab;
+  padding: 6px;
+  color: var(--muted);
+  touch-action: none;
+  font-size: 1.2rem;
+}
+.tile-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--surface);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+.tile-meta {
+  flex: 1;
+  min-width: 0;
+}
+.tile-title {
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tile-artist {
+  font-size: 0.8rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.explicit-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+  margin-top: 2px;
+}
+.tile-action-btn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.tile-remove-btn {
+  color: var(--danger);
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.tab-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: pointer;
+}
+.tab-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.settings-field {
+  display: block;
+  margin-bottom: 14px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.settings-field input[type='range'],
+.settings-field select {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+}
+.settings-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+fieldset.settings-field {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+}
+fieldset.settings-field label {
+  display: block;
+  color: var(--text);
+  padding: 4px 0;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Portrait: swap the grid's column/row emphasis so wide layouts fit a
+   narrow-tall screen (JS sets --cols/--rows accordingly). */
+@media (orientation: portrait) {
+  .kid-grid {
+    height: 100%;
+  }
+}
