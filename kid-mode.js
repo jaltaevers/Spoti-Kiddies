@@ -8,7 +8,7 @@ const SPARKLES = ['✨', '⭐', '🎉'];
 // name on every tile — for kids who can read and would rather pick by
 // name. This default emoji only applies when a tile has no manual
 // override, which always wins in either mode.
-const SIMPLE_MODE_EMOJI = ['🎵', '🎶', '🎤', '🥁', '🎸', '🎹', '🎺', '🌟'];
+const SIMPLE_MODE_EMOJI = ['🎵', '🎶', '🎤', '🥁', '🎸', '🎹', '🎺', '🌟', '🦄', '🌈', '🎈', '🐥', '🍭', '🚀', '🐬', '🎉'];
 
 // Scales to any tile count (there's no fixed cap on how many a kid can
 // have) by keeping the grid roughly square rather than stopping at a

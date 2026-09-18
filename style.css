@@ -184,16 +184,19 @@ h2 {
   --cols: 2;
   --rows: 2;
   display: grid;
-  /* minmax floors each tile at a comfortably tappable size instead of
-     shrinking indefinitely as the tile count grows (there's no cap on
-     how many songs a kid can have) — once that floor no longer fits
-     the screen, the grid overflows its own scroll area rather than the
-     tiles becoming too small to tap. (A max side here too, nesting
-     min(1fr, 190px), silently made the whole declaration invalid in
-     testing — fr units don't reliably compose inside min()/max() — so
-     the max-size cap lives on .kid-tile itself instead, further down.) */
-  grid-template-columns: repeat(var(--cols), minmax(64px, 1fr));
-  grid-template-rows: repeat(var(--rows), minmax(64px, 1fr));
+  /* Both sides of minmax are fixed lengths on purpose, not 1fr: a flexible
+     1fr track always claims its full equal share of the grid's height/
+     width, even once the tile inside it hits its own 190px cap — with few
+     tiles on a tall screen that left each tile stranded, alone, in the
+     middle of an oversized cell, far from its neighbors. Capping the track
+     itself at the same 190px means tiles simply cluster together with
+     `gap` between them, and any leftover room collects around the whole
+     cluster instead (via justify/align-content) rather than between tiles.
+     The 64px floor still keeps tiles tappable if the count grows large
+     enough to shrink them; past that floor the grid overflows its own
+     scroll area rather than shrinking tiles below tap size. */
+  grid-template-columns: repeat(var(--cols), minmax(64px, 190px));
+  grid-template-rows: repeat(var(--rows), minmax(64px, 190px));
   justify-content: center;
   align-content: center;
   gap: 18px;
@@ -250,16 +253,18 @@ h2 {
 /* Simple mode pairs the emoji with a name label, so it runs smaller than
    the cover-mode/override case where the emoji is the whole tile. */
 .kid-tile:has(.kid-tile-label) .kid-tile-emoji {
-  font-size: min(10vw, 3.2rem);
+  font-size: min(11vw, 3.6rem);
 }
 .kid-tile-label {
   font-family: 'Baloo 2', ui-rounded, 'Segoe UI', sans-serif;
-  font-weight: 700;
-  font-size: 0.95rem;
+  font-weight: 800;
+  font-size: 1.05rem;
   line-height: 1.2;
   color: #3d3358;
   text-align: center;
-  padding: 0 6px;
+  background: rgba(255, 255, 255, 0.6);
+  padding: 4px 12px;
+  border-radius: 999px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
