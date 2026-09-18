@@ -30,6 +30,13 @@ body {
 
 #app {
   height: 100vh;
+  /* Mobile browsers report 100vh as if their address bar were hidden, so a
+     bottom-anchored absolutely positioned child (the now-playing bar) ends
+     up partly below the actually-visible fold whenever that chrome is
+     shown — it looks shoved against the edge instead of floating above it.
+     100dvh tracks the real, current viewport; older browsers that don't
+     understand it just ignore this line and keep the 100vh above. */
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -181,7 +188,7 @@ h2 {
      at the moment it's added and won't reflect later switches), so this
      needs to read clearly at a glance rather than as a small corner badge. */
   position: absolute;
-  top: 14px;
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
   left: 50%;
   transform: translateX(-50%);
   font-family: 'Baloo 2', ui-rounded, 'Segoe UI', sans-serif;
@@ -411,8 +418,8 @@ h2 {
      to be able to find it on a light background, but it shouldn't read as
      an inviting button to a toddler the way the bright tiles do. */
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  right: calc(env(safe-area-inset-right, 0px) + 12px);
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -439,14 +446,16 @@ h2 {
 
 .now-playing-overlay {
   position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
+  /* env(safe-area-inset-*) keeps this floating clear of a notch/home
+     indicator on the sides too, not just the bottom (matters in landscape). */
+  left: calc(env(safe-area-inset-left, 0px) + 12px);
+  right: calc(env(safe-area-inset-right, 0px) + 12px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
   z-index: 2;
   background: #fff;
   border-radius: 28px;
-  box-shadow: 0 10px 24px rgba(90, 60, 130, 0.2);
-  padding: 12px 16px;
+  box-shadow: 0 14px 32px rgba(90, 60, 130, 0.28);
+  padding: 14px 18px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -468,12 +477,24 @@ h2 {
   gap: 14px;
 }
 .np-back {
-  font-size: 1.8rem;
-  background: none;
+  /* A plain "‹" here used to just hide this bar while the song kept
+     playing silently out of view — easy to read as broken, since tapping
+     it didn't seem to do anything. It now also pauses (see kid-mode.js),
+     so it's styled and iconed like the other real media controls in this
+     row instead of a quiet, easy-to-miss chevron. */
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
   border: none;
-  color: #6b5b95;
+  background: #ff6b81;
+  color: #fff;
+  font-size: 1.3rem;
   cursor: pointer;
-  padding: 4px 10px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(255, 107, 129, 0.45);
 }
 .np-art {
   width: 56px;
