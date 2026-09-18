@@ -124,6 +124,7 @@ const parentMode = createParentMode({
     quickPlaylistOpenLink: document.getElementById('quick-playlist-open-link'),
     volumeValue: document.getElementById('volume-value'),
     accountInfo: document.getElementById('account-info'),
+    scopeInfo: document.getElementById('scope-info'),
     tokenWarning: document.getElementById('token-warning'),
     scopeWarning: document.getElementById('scope-warning'),
     tileCount: document.getElementById('tile-count'),

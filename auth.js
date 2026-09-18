@@ -77,6 +77,12 @@ export async function redirectToLogin(config) {
     code_challenge: challenge,
     scope: config.scopes.join(' '),
     state,
+    // Without this, Spotify can silently reuse whatever was approved the
+    // first time this app was ever authorized and skip the approval
+    // screen entirely — which would mean a scope added to config.js later
+    // never actually reaches the user, even after "Log in again", with no
+    // visible sign that's what happened.
+    show_dialog: 'true',
   });
   window.location.assign(`${AUTHORIZE_ENDPOINT}?${params.toString()}`);
 }

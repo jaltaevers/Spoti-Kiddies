@@ -123,6 +123,12 @@ export function createParentMode({
     // isn't one.
     const tokens = loadTokens();
     const grantedScopes = (tokens && tokens.scope) || '';
+    // Shown plainly rather than just checked internally — the "log in
+    // again" fix for a missing scope has a real failure mode of its own
+    // (Spotify silently reusing a prior consent instead of granting the
+    // newly-requested one), so whether that actually worked needs to be
+    // directly checkable rather than inferred from yet another guess.
+    els.scopeInfo.textContent = tokens && tokens.scope ? `Permissions granted: ${tokens.scope}` : '';
     const missingPlaylistScope = !grantedScopes.split(' ').includes(REQUIRED_PLAYLIST_SCOPE);
     els.scopeWarning.hidden = !missingPlaylistScope;
     if (missingPlaylistScope) {
