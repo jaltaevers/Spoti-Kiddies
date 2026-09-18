@@ -310,12 +310,19 @@ async function initPlayerAndKidMode() {
       playPause: document.getElementById('np-play-pause'),
       greeting: document.getElementById('kid-greeting'),
       sparkleLayer: document.getElementById('sparkle-layer'),
+      visualizerCanvas: document.getElementById('np-visualizer'),
+      vizToggleBtn: document.getElementById('np-viz-toggle'),
     },
     player,
     getConfig: getActiveKidConfig,
     onOpenParentGate: () => {
       showOnly('gate');
       parentGate.show();
+    },
+    onToggleVisualizer: (enabled) => {
+      const activeId = store.activeKidId;
+      store = { ...store, kids: store.kids.map((k) => (k.id === activeId ? { ...k, settings: { ...k.settings, showVisualizer: enabled } } : k)) };
+      saveStore(store);
     },
   });
 

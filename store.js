@@ -14,6 +14,7 @@ export const DEFAULT_KID_SETTINGS = {
   sleepTimerMinutes: null, // null | 15 | 30 | 45 | 60
   hideExplicit: true,
   tileDisplay: 'cover', // 'cover' (album art) | 'simple' (emoji + song name)
+  showVisualizer: true, // Winamp-style bars on the now-playing overlay
 };
 
 function readJson(key) {
@@ -79,6 +80,7 @@ function migrateLegacyStore(stored) {
       sleepTimerMinutes: legacySettings.sleepTimerMinutes != null ? legacySettings.sleepTimerMinutes : null,
       hideExplicit: legacySettings.hideExplicit != null ? legacySettings.hideExplicit : true,
       tileDisplay: legacySettings.tileDisplay || DEFAULT_KID_SETTINGS.tileDisplay,
+      showVisualizer: legacySettings.showVisualizer != null ? legacySettings.showVisualizer : DEFAULT_KID_SETTINGS.showVisualizer,
     },
   };
   return { kids: [kid], activeKidId: kid.id, pinHash: legacySettings.pinHash || null, familySeeded: false };
