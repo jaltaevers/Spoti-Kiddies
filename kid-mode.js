@@ -91,7 +91,11 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate }) {
       span.style.setProperty('--dx', `${Math.cos(angle) * distance}px`);
       span.style.setProperty('--dy', `${Math.sin(angle) * distance}px`);
       els.sparkleLayer.appendChild(span);
-      span.addEventListener('animationend', () => span.remove());
+      const remove = () => span.remove();
+      span.addEventListener('animationend', remove);
+      // Fallback in case animationend doesn't fire for some reason — this
+      // runs for hours unattended, so a stray sparkle must not linger.
+      setTimeout(remove, 1000);
     }
   }
 
@@ -264,7 +268,12 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate }) {
   els.parentGateBtn.addEventListener('pointercancel', cancelHold);
   els.backBtn.addEventListener('click', closeNowPlaying);
   els.playPause.addEventListener('click', handlePlayPauseTap);
-  window.addEventListener('resize', () => renderGrid());
+
+  let resizeDebounce = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeDebounce);
+    resizeDebounce = setTimeout(renderGrid, 150);
+  });
 
   return {
     show() {
