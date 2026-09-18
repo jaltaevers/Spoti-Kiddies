@@ -32,11 +32,6 @@ function getActiveKidConfig() {
   return getActiveKid(store);
 }
 
-function applyDocumentTitle() {
-  const name = getActiveKidConfig().settings.kidName && getActiveKidConfig().settings.kidName.trim();
-  document.title = name ? `${name}’s Music Tiles` : 'Kids Music Tiles';
-}
-
 const api = createSpotifyApi(SPOTIFY_CONFIG, { onReauthRequired: forceReauth });
 
 function forceReauth() {
@@ -167,30 +162,24 @@ const parentMode = createParentMode({
   saveAndApply(newKidConfig) {
     store = { ...store, kids: store.kids.map((k) => (k.id === newKidConfig.id ? newKidConfig : k)) };
     saveStore(store);
-    applyDocumentTitle();
     if (kidMode) kidMode.show();
   },
   getKids: () => store.kids,
   getActiveKidId: () => store.activeKidId,
-  // The tab title reflects whichever kid is active even while still in
-  // parent mode, so all three refresh it, not just onDone.
   onSwitchKid(kidId) {
     store = { ...store, activeKidId: kidId };
     saveStore(store);
     refreshParentMode();
-    applyDocumentTitle();
   },
   onAddKid(name) {
     store = addKid(store, name);
     saveStore(store);
     refreshParentMode();
-    applyDocumentTitle();
   },
   onRemoveKid(kidId) {
     store = removeKid(store, kidId);
     saveStore(store);
     refreshParentMode();
-    applyDocumentTitle();
     if (kidMode) kidMode.show();
   },
   onChangePin(pinHash) {
@@ -359,7 +348,6 @@ async function main() {
 
   await applyPendingShareLink();
   window.history.replaceState({}, document.title, window.location.pathname);
-  applyDocumentTitle();
 
   await initPlayerAndKidMode();
   autoFetchMissingPlaylists(); // fire-and-forget — see its own comment

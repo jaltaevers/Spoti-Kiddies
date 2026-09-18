@@ -160,16 +160,23 @@ h2 {
 }
 
 .kid-greeting {
+  /* Now that one device serves multiple kids, this is the only reliable
+     "who's up" indicator — the tab/home-screen-icon title is deliberately
+     no longer per-kid (a home-screen shortcut's label is cached by the OS
+     at the moment it's added and won't reflect later switches), so this
+     needs to read clearly at a glance rather than as a small corner badge. */
   position: absolute;
   top: 14px;
-  left: 16px;
+  left: 50%;
+  transform: translateX(-50%);
   font-family: 'Baloo 2', ui-rounded, 'Segoe UI', sans-serif;
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1.3rem;
   color: #6b5b95;
-  background: rgba(255, 255, 255, 0.75);
-  padding: 6px 16px;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 8px 22px;
   border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(90, 60, 130, 0.15);
   z-index: 4;
 }
 
