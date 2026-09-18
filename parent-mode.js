@@ -272,6 +272,12 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
     }
   }
 
+  function describePlaylistError(e) {
+    return e && e.status === 403
+      ? 'Can’t read this playlist — Development Mode only allows reading playlists you created or collaborate on. Try one of your own playlists, or add songs individually via Search.'
+      : (e && e.message) || 'Couldn’t fetch that playlist.';
+  }
+
   async function fetchPlaylist() {
     els.playlistError.hidden = true;
     els.playlistResults.innerHTML = '';
@@ -285,10 +291,42 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
       els.playlistAddAllBtn.hidden = tracks.length === 0;
     } catch (e) {
       els.playlistError.hidden = false;
-      els.playlistError.textContent =
-        e && e.status === 403
-          ? 'Can’t read this playlist — Development Mode only allows reading playlists you created or collaborate on. Try one of your own playlists, or add songs individually via Search.'
-          : (e && e.message) || 'Couldn’t fetch that playlist.';
+      els.playlistError.textContent = describePlaylistError(e);
+    }
+  }
+
+  async function quickSetupFromPlaylist() {
+    els.quickPlaylistError.hidden = true;
+    els.quickPlaylistStatus.textContent = '';
+    const link = els.quickPlaylistInput.value.trim();
+    if (!link) {
+      els.quickPlaylistError.hidden = false;
+      els.quickPlaylistError.textContent = 'Paste a playlist link first.';
+      return;
+    }
+    if (draft.tiles.length > 0) {
+      const ok = window.confirm(`This replaces your current ${draft.tiles.length} song(s) with tracks from this playlist. Continue?`);
+      if (!ok) return;
+    }
+    els.quickPlaylistStatus.textContent = 'Loading…';
+    try {
+      const tracks = await api.getPlaylistItems(link);
+      const eligible = tracks.filter((t) => !(draft.settings.hideExplicit && t.explicit)).slice(0, 16);
+      if (eligible.length < 4) {
+        els.quickPlaylistStatus.textContent = '';
+        els.quickPlaylistError.hidden = false;
+        els.quickPlaylistError.textContent = `That playlist only has ${eligible.length} usable song(s) — need at least 4. Add more below with Search.`;
+        if (eligible.length > 0) draft.tiles = eligible.map((t) => tileFromTrack(t));
+        renderTileList();
+        return;
+      }
+      draft.tiles = eligible.map((t) => tileFromTrack(t));
+      renderTileList();
+      els.quickPlaylistStatus.textContent = `Loaded ${eligible.length} song(s) from this playlist — tap Save when you're happy, or fine-tune below first.`;
+    } catch (e) {
+      els.quickPlaylistStatus.textContent = '';
+      els.quickPlaylistError.hidden = false;
+      els.quickPlaylistError.textContent = describePlaylistError(e);
     }
   }
 
@@ -305,15 +343,20 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
   }
 
   function renderSettings() {
+    els.kidNameInput.value = draft.settings.kidName || '';
     els.endOfSongRadios.forEach((r) => {
       r.checked = r.value === draft.settings.endOfSong;
     });
     els.volumeSlider.value = String(Math.round(draft.settings.maxVolume * 100));
+    els.volumeValue.textContent = els.volumeSlider.value;
     els.sleepTimerSelect.value = draft.settings.sleepTimerMinutes ? String(draft.settings.sleepTimerMinutes) : '';
     els.hideExplicitToggle.checked = draft.settings.hideExplicit;
   }
 
   function bindSettings() {
+    els.kidNameInput.addEventListener('input', () => {
+      draft.settings.kidName = els.kidNameInput.value;
+    });
     els.endOfSongRadios.forEach((r) => {
       r.addEventListener('change', () => {
         if (r.checked) draft.settings.endOfSong = r.value;
@@ -321,6 +364,7 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
     });
     els.volumeSlider.addEventListener('input', () => {
       draft.settings.maxVolume = Number(els.volumeSlider.value) / 100;
+      els.volumeValue.textContent = els.volumeSlider.value;
     });
     els.sleepTimerSelect.addEventListener('change', () => {
       draft.settings.sleepTimerMinutes = els.sleepTimerSelect.value ? Number(els.sleepTimerSelect.value) : null;
@@ -430,6 +474,8 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
     els.reloginBtn.addEventListener('click', onRelogin);
   }
 
+  els.quickPlaylistBtn.addEventListener('click', quickSetupFromPlaylist);
+
   bindSettings();
   bindSearch();
   bindSaveActions();
@@ -448,6 +494,9 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
       els.playlistResults.innerHTML = '';
       els.playlistError.hidden = true;
       els.playlistAddAllBtn.hidden = true;
+      els.quickPlaylistInput.value = '';
+      els.quickPlaylistStatus.textContent = '';
+      els.quickPlaylistError.hidden = true;
       switchTab('search');
     },
   };

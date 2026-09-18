@@ -4,6 +4,7 @@
 const STORAGE_KEY = 'kmt_config_v1';
 
 export const DEFAULT_SETTINGS = {
+  kidName: '',
   endOfSong: 'continue', // 'stop' | 'repeat' | 'continue'
   maxVolume: 1,
   sleepTimerMinutes: null, // null | 15 | 30 | 45 | 60

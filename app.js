@@ -28,6 +28,11 @@ function getSavedConfig() {
   return config;
 }
 
+function applyDocumentTitle() {
+  const name = config.settings.kidName && config.settings.kidName.trim();
+  document.title = name ? `${name}’s Music Tiles` : 'Kids Music Tiles';
+}
+
 const api = createSpotifyApi(SPOTIFY_CONFIG, { onReauthRequired: forceReauth });
 
 function forceReauth() {
@@ -66,6 +71,12 @@ const parentGate = createParentGate({
 
 const parentMode = createParentMode({
   els: {
+    kidNameInput: document.getElementById('kid-name-input'),
+    quickPlaylistInput: document.getElementById('quick-playlist-input'),
+    quickPlaylistBtn: document.getElementById('quick-playlist-btn'),
+    quickPlaylistStatus: document.getElementById('quick-playlist-status'),
+    quickPlaylistError: document.getElementById('quick-playlist-error'),
+    volumeValue: document.getElementById('volume-value'),
     accountInfo: document.getElementById('account-info'),
     tokenWarning: document.getElementById('token-warning'),
     tileCount: document.getElementById('tile-count'),
@@ -104,6 +115,7 @@ const parentMode = createParentMode({
   saveAndApply(newConfig) {
     config = newConfig;
     saveConfig(config);
+    applyDocumentTitle();
     if (kidMode) kidMode.show();
   },
   onDone: () => {
@@ -178,6 +190,8 @@ async function initPlayerAndKidMode() {
       parentGateBtn: document.getElementById('parent-gate-btn'),
       backBtn: document.getElementById('back-to-tiles-btn'),
       playPause: document.getElementById('np-play-pause'),
+      greeting: document.getElementById('kid-greeting'),
+      sparkleLayer: document.getElementById('sparkle-layer'),
     },
     player,
     getConfig,
@@ -219,6 +233,7 @@ async function main() {
 
   await applyPendingShareLink();
   window.history.replaceState({}, document.title, window.location.pathname);
+  applyDocumentTitle();
 
   await initPlayerAndKidMode();
 

@@ -7,10 +7,12 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" content="#121212" />
+    <meta name="theme-color" content="#FFE8D6" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="apple-touch-icon" href="icon.svg" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -26,19 +28,24 @@
 
       <!-- Kid mode -->
       <section id="kid-mode" class="view" hidden>
+        <div id="kid-greeting" class="kid-greeting" hidden></div>
+
         <div id="kid-grid" class="kid-grid"></div>
+
+        <div id="sparkle-layer" class="sparkle-layer" aria-hidden="true"></div>
 
         <div id="kid-error" class="kid-error" hidden>
           <svg viewBox="0 0 200 140" class="cloud-illustration" aria-hidden="true">
-            <ellipse cx="100" cy="80" rx="70" ry="40" fill="#3a3a4a" />
-            <circle cx="55" cy="65" r="30" fill="#3a3a4a" />
-            <circle cx="130" cy="60" r="35" fill="#3a3a4a" />
-            <circle cx="95" cy="55" r="4" fill="#8888a0" />
-            <path d="M85 55 q5 -6 10 0" stroke="#8888a0" stroke-width="3" fill="none" stroke-linecap="round" />
-            <circle cx="125" cy="55" r="4" fill="#8888a0" />
-            <path d="M115 55 q5 -6 10 0" stroke="#8888a0" stroke-width="3" fill="none" stroke-linecap="round" />
-            <text x="150" y="30" font-size="18" fill="#8888a0">z</text>
-            <text x="162" y="18" font-size="14" fill="#8888a0">z</text>
+            <ellipse cx="100" cy="80" rx="70" ry="40" fill="#EAE0FF" />
+            <circle cx="55" cy="65" r="30" fill="#EAE0FF" />
+            <circle cx="130" cy="60" r="35" fill="#EAE0FF" />
+            <circle cx="95" cy="55" r="4" fill="#8A7FB8" />
+            <path d="M85 55 q5 -6 10 0" stroke="#8A7FB8" stroke-width="3" fill="none" stroke-linecap="round" />
+            <circle cx="125" cy="55" r="4" fill="#8A7FB8" />
+            <path d="M115 55 q5 -6 10 0" stroke="#8A7FB8" stroke-width="3" fill="none" stroke-linecap="round" />
+            <path d="M92 68 q8 8 16 0" stroke="#8A7FB8" stroke-width="3" fill="none" stroke-linecap="round" />
+            <text x="148" y="34" font-size="20" fill="#B8ACDE" font-family="'Baloo 2', sans-serif">z</text>
+            <text x="163" y="20" font-size="15" fill="#B8ACDE" font-family="'Baloo 2', sans-serif">z</text>
           </svg>
           <div id="kid-error-detail" class="kid-error-detail"></div>
         </div>
@@ -75,6 +82,21 @@
           <h1>Parent Mode</h1>
           <button id="parent-done-btn" class="small-btn">Done</button>
         </header>
+
+        <section class="parent-section quick-setup-section">
+          <h2>Quick setup</h2>
+          <label class="settings-field">
+            Kid's name (optional)
+            <input id="kid-name-input" type="text" class="text-input" placeholder="e.g. Emma" maxlength="40" />
+          </label>
+          <label class="settings-field">
+            Playlist link
+            <input id="quick-playlist-input" type="text" class="text-input" placeholder="Paste a Spotify playlist link you own or collaborate on" />
+          </label>
+          <button id="quick-playlist-btn" class="big-btn">Load playlist as tiles</button>
+          <div id="quick-playlist-status" class="muted"></div>
+          <div id="quick-playlist-error" class="warning" hidden></div>
+        </section>
 
         <section class="parent-section">
           <h2>Account</h2>
@@ -121,7 +143,7 @@
             <label><input type="radio" name="end-of-song" value="continue" /> Continue to next tile</label>
           </fieldset>
           <label class="settings-field">
-            Max volume
+            Max volume (<span id="volume-value">100</span>%)
             <input id="volume-slider" type="range" min="0" max="100" value="100" />
           </label>
           <label class="settings-field">

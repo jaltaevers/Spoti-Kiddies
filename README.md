@@ -40,11 +40,18 @@ every push, so nothing else is needed.
 ### First run
 
 With no songs configured yet, opening the site goes straight to parent
-mode (there's nothing to show in kid mode with zero tiles). From there:
-add at least 4 songs (search, or paste a link to a playlist you own or
-collaborate on — Spotify's Development Mode restrictions block reading
-other accounts' playlists), adjust settings, tap **Save**, then **Done**
-to see the kid-facing grid.
+mode (there's nothing to show in kid mode with zero tiles). The **Quick
+setup** box at the top is the fast path: enter the kid's name (optional —
+shows as a small greeting in kid mode and in the browser tab title) and
+paste a link to a playlist you own or collaborate on (Spotify's
+Development Mode restrictions block reading other accounts' playlists),
+then **Load playlist as tiles** — that's it, tap **Save** and **Done** to
+see the kid-facing grid.
+
+For more control, further down: search for individual songs, drag to
+reorder, override any tile with an emoji + color instead of album art,
+and set end-of-song behavior, a max volume cap, a sleep timer, and hide
+explicit tracks (default on).
 
 Parent mode is reachable any time by press-and-holding the small circle in
 the top-right corner of kid mode for 3 seconds, then entering the PIN (set

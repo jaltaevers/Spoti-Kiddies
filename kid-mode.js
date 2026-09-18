@@ -1,6 +1,8 @@
 const TAP_DEBOUNCE_MS = 800;
 const HOLD_MS = 3000;
 const FADE_MS = 30_000;
+const TILE_PALETTE = ['#FF6B6B', '#FFD166', '#06D6A0', '#4ECDC4', '#5B8DEF', '#B892FF', '#FF8FB1'];
+const SPARKLES = ['✨', '⭐', '🎉'];
 
 function computeLayout(count) {
   if (count <= 4) return { cols: 2, rows: 2 };
@@ -55,13 +57,42 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate }) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'kid-tile';
+      btn.style.setProperty('--tile-color', TILE_PALETTE[index % TILE_PALETTE.length]);
       btn.setAttribute('aria-label', tile.title || 'song');
       paintTileVisual(btn, tile);
-      btn.addEventListener('click', () => handleTap(index));
+      btn.addEventListener('click', () => handleTap(index, btn));
       els.grid.appendChild(btn);
     });
 
     updateActiveTileVisual();
+    renderGreeting();
+  }
+
+  function renderGreeting() {
+    if (!els.greeting) return;
+    const name = getConfig().settings.kidName && getConfig().settings.kidName.trim();
+    els.greeting.hidden = !name;
+    if (name) els.greeting.textContent = `🎵 ${name}’s Music`;
+  }
+
+  function spawnSparkles(originBtn) {
+    if (!els.sparkleLayer || !originBtn) return;
+    const rect = originBtn.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    for (let i = 0; i < 6; i++) {
+      const span = document.createElement('span');
+      span.className = 'sparkle';
+      span.textContent = SPARKLES[i % SPARKLES.length];
+      const angle = (Math.PI * 2 * i) / 6 + Math.random() * 0.5;
+      const distance = 60 + Math.random() * 40;
+      span.style.left = `${centerX}px`;
+      span.style.top = `${centerY}px`;
+      span.style.setProperty('--dx', `${Math.cos(angle) * distance}px`);
+      span.style.setProperty('--dy', `${Math.sin(angle) * distance}px`);
+      els.sparkleLayer.appendChild(span);
+      span.addEventListener('animationend', () => span.remove());
+    }
   }
 
   function updateActiveTileVisual() {
@@ -70,13 +101,14 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate }) {
     });
   }
 
-  async function handleTap(index) {
+  async function handleTap(index, btn) {
     const config = getConfig();
     const tile = config.tiles[index];
     if (!tile) return;
     const now = Date.now();
     if (now - (lastTapAt.get(tile.id) || 0) < TAP_DEBOUNCE_MS) return;
     lastTapAt.set(tile.id, now);
+    spawnSparkles(btn);
 
     try {
       await player.activateElement();
