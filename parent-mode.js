@@ -361,14 +361,27 @@ export function createParentMode({
     }
   }
 
+  function extractSpotifyErrorDetail(body) {
+    if (!body) return null;
+    try {
+      const parsed = JSON.parse(body);
+      return (parsed && parsed.error && parsed.error.message) || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   function describePlaylistError(e) {
     if (e && e.status === 403) {
-      // Development Mode's ownership check is about the Spotify *account*,
-      // not who a person considers themselves to have made the playlist —
-      // easy to mix up if it was created while signed into a different
-      // account than whichever one is logged into this app right now.
       const who = currentAccountLabel ? `“${currentAccountLabel}”` : 'the account logged into this app';
-      return `Can’t read this playlist — ${who} doesn’t own it and isn’t listed as a collaborator on it, and Development Mode only allows reading playlists that exact account created or collaborates on (not just anything you personally made — it has to be that specific Spotify login). Check who it’s shared with in the Spotify app or spotify.com, then either add ${who} as a collaborator or log into this app with the account that actually made it — or add songs individually via Search instead.`;
+      const detail = extractSpotifyErrorDetail(e.body);
+      const said = detail ? ` Spotify’s own message: “${detail}.”` : '';
+      // Deliberately not asserting a single cause here — a 403 on this
+      // endpoint covers a missing OAuth scope and a genuine ownership
+      // mismatch identically otherwise, and guessing between them without
+      // Spotify's own message is exactly what went wrong the first two
+      // times this was diagnosed.
+      return `Can’t read this playlist (error 403).${said} If you haven’t logged in again since playlist reading was added as a permission, try that first (Account → Log in again). If you have, this specifically means ${who} doesn’t own this playlist and isn’t listed as a collaborator on it — check who it’s shared with in the Spotify app, or add songs individually via Search instead.`;
     }
     return (e && e.message) || 'Couldn’t fetch that playlist.';
   }

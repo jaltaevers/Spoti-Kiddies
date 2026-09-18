@@ -56,9 +56,16 @@ export function createSpotifyApi(config, { onReauthRequired } = {}) {
       throw new SpotifyApiError('Rate limited by Spotify', { status: 429, retryAfterSeconds });
     }
     if (res.status === 403) {
+      // Capturing the body here matters: this status covers several
+      // unrelated causes (no active Premium, not on this Development Mode
+      // app's allowed-users list, missing OAuth scope, playlist ownership)
+      // and without Spotify's own message, every one of them looks
+      // identical from here — which is exactly how an earlier fix guessed
+      // wrong about which one it actually was.
+      const body = await res.text().catch(() => '');
       throw new SpotifyApiError(
-        'This Spotify account can’t be used right now (no active Premium, or not on this app’s allowed-users list)',
-        { status: 403 }
+        'This Spotify account can’t be used right now (no active Premium, not on this app’s allowed-users list, or missing permission for what was just requested)',
+        { status: 403, body }
       );
     }
     if (!res.ok && res.status !== 204) {

@@ -1,5 +1,5 @@
 const TAP_DEBOUNCE_MS = 800;
-const HOLD_MS = 3000;
+const HOLD_MS = 2250; // 75% of the original 3000ms
 const FADE_MS = 30_000;
 // A dustier, more muted palette than a primary-color toybox — still
 // clearly distinct tile-to-tile, but reads as considered rather than a
