@@ -595,6 +595,10 @@ h2 {
 .kid-tab-remove:hover {
   opacity: 1;
 }
+.kid-tab-warning {
+  font-size: 0.85rem;
+  line-height: 1;
+}
 
 .text-input {
   width: 100%;

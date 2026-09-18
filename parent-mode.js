@@ -37,6 +37,7 @@ export function createParentMode({
   let searchOffset = 0;
   let searchQuery = '';
   let searchDebounce = null;
+  let currentAccountLabel = null;
 
   function existingUris() {
     return new Set(draft.tiles.map((t) => t.uri));
@@ -55,6 +56,19 @@ export function createParentMode({
       const tab = document.createElement('button');
       tab.type = 'button';
       tab.className = 'kid-tab' + (kid.id === activeId ? ' active' : '');
+
+      // A playlist link with still no songs means either it hasn't been
+      // loaded yet or a background auto-fetch attempt failed silently —
+      // this is the only place that would otherwise surface, since that
+      // background fetch has nowhere else to report a failure to.
+      if (kid.sourcePlaylistUrl && kid.tiles.length === 0) {
+        const warn = document.createElement('span');
+        warn.className = 'kid-tab-warning';
+        warn.textContent = '⚠️';
+        warn.setAttribute('aria-label', `${kidLabel(kid)} still needs songs loaded`);
+        warn.title = 'Playlist linked but not loaded yet — open this tab and try Load playlist as tiles.';
+        tab.appendChild(warn);
+      }
 
       const label = document.createElement('span');
       label.textContent = kidLabel(kid);
@@ -87,6 +101,7 @@ export function createParentMode({
   }
 
   function renderAccount(profile) {
+    currentAccountLabel = profile ? profile.display_name || profile.id : null;
     els.accountInfo.textContent = profile ? profile.display_name || profile.id : 'Not logged in';
     const info = getLoginAgeInfo();
     if (info && info.expiringSoon) {
@@ -331,9 +346,15 @@ export function createParentMode({
   }
 
   function describePlaylistError(e) {
-    return e && e.status === 403
-      ? 'Can’t read this playlist — Development Mode only allows reading playlists you created or collaborate on. Try one of your own playlists, or add songs individually via Search.'
-      : (e && e.message) || 'Couldn’t fetch that playlist.';
+    if (e && e.status === 403) {
+      // Development Mode's ownership check is about the Spotify *account*,
+      // not who a person considers themselves to have made the playlist —
+      // easy to mix up if it was created while signed into a different
+      // account than whichever one is logged into this app right now.
+      const who = currentAccountLabel ? `“${currentAccountLabel}”` : 'the account logged into this app';
+      return `Can’t read this playlist — ${who} doesn’t own it and isn’t listed as a collaborator on it, and Development Mode only allows reading playlists that exact account created or collaborates on (not just anything you personally made — it has to be that specific Spotify login). Check who it’s shared with in the Spotify app or spotify.com, then either add ${who} as a collaborator or log into this app with the account that actually made it — or add songs individually via Search instead.`;
+    }
+    return (e && e.message) || 'Couldn’t fetch that playlist.';
   }
 
   async function fetchPlaylist() {
