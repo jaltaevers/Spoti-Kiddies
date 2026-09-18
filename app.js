@@ -165,6 +165,11 @@ const parentMode = createParentMode({
   saveAndApply(newKidConfig) {
     store = { ...store, kids: store.kids.map((k) => (k.id === newKidConfig.id ? newKidConfig : k)) };
     saveStore(store);
+    // Otherwise a new max volume only ever reaches the player on the next
+    // tile tap — a song already playing when a parent saves stays at
+    // whatever volume it started at, which reads as the slider doing
+    // nothing if that's the song they were adjusting it for.
+    if (player) player.setVolume(newKidConfig.settings.maxVolume).catch(() => {});
     if (kidMode) kidMode.show();
   },
   getKids: () => store.kids,
@@ -213,15 +218,24 @@ function refreshParentMode() {
 
 function enterParentMode() {
   showOnly('parent');
+  // Shows the editor immediately with whatever profile is already cached
+  // (or none yet) rather than waiting on this fetch — every settings/
+  // search control's listener is bound once at startup and assumes the
+  // draft it edits already exists the moment this view is interactive, so
+  // that draft can't be left waiting on a network round-trip. The Account
+  // panel is the only part that actually needs the fetched profile, and
+  // setAccountProfile() below fills it in on its own once the fetch
+  // resolves, without re-running show() and discarding an in-progress edit.
+  parentMode.show(lastSpotifyProfile);
   api
     .getMe()
     .then((profile) => {
       lastSpotifyProfile = profile;
-      parentMode.show(profile);
+      parentMode.setAccountProfile(profile);
     })
     .catch(() => {
       lastSpotifyProfile = null;
-      parentMode.show(null);
+      parentMode.setAccountProfile(null);
     });
 }
 
@@ -310,12 +324,19 @@ async function initPlayerAndKidMode() {
       playPause: document.getElementById('np-play-pause'),
       greeting: document.getElementById('kid-greeting'),
       sparkleLayer: document.getElementById('sparkle-layer'),
+      visualizerCanvas: document.getElementById('np-visualizer'),
+      vizToggleBtn: document.getElementById('np-viz-toggle'),
     },
     player,
     getConfig: getActiveKidConfig,
     onOpenParentGate: () => {
       showOnly('gate');
       parentGate.show();
+    },
+    onToggleVisualizer: (enabled) => {
+      const activeId = store.activeKidId;
+      store = { ...store, kids: store.kids.map((k) => (k.id === activeId ? { ...k, settings: { ...k.settings, showVisualizer: enabled } } : k)) };
+      saveStore(store);
     },
   });
 

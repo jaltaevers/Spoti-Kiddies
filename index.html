@@ -98,10 +98,16 @@
         </button>
 
         <div id="now-playing-overlay" class="now-playing-overlay" hidden>
-          <button id="back-to-tiles-btn" class="np-back" aria-label="Back to tiles">&lsaquo;</button>
-          <div id="np-art" class="np-art"></div>
-          <div class="np-progress"><div id="np-progress-bar" class="np-progress-bar"></div></div>
-          <button id="np-play-pause" class="np-play-pause" aria-label="Play or pause">&#9208;</button>
+          <div class="np-row">
+            <button id="back-to-tiles-btn" class="np-back" aria-label="Back to tiles">&lsaquo;</button>
+            <div id="np-art" class="np-art"></div>
+            <div class="np-progress"><div id="np-progress-bar" class="np-progress-bar"></div></div>
+            <button id="np-play-pause" class="np-play-pause" aria-label="Play or pause">&#9208;</button>
+            <button id="np-viz-toggle" class="np-viz-toggle" aria-label="Toggle music visualizer" aria-pressed="false">
+              <span class="viz-toggle-icon"><i></i><i></i><i></i></span>
+            </button>
+          </div>
+          <canvas id="np-visualizer" class="np-visualizer" aria-hidden="true" hidden></canvas>
         </div>
       </section>
 

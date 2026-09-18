@@ -122,6 +122,13 @@ reorder songs, then come back and tap **Load playlist as tiles** again
 - **The "~6 months" refresh-token expiry warning** in the account panel is
   an estimate (Spotify doesn't publish an exact day count), not a precise
   countdown.
+- **The Winamp-style visualizer** on the now-playing bar (the small button
+  next to play/pause turns it on or off, and remembers the choice per kid)
+  is a stylized animation, not a real spectrum analyzer — the Spotify Web
+  Playback SDK plays through its own DRM-protected pipeline with no
+  accessible audio to actually analyze, so the bars are driven by a
+  synthetic signal shaped to swell and settle the way real music does,
+  keyed only to actual play/pause state.
 
 ## Local dev
 

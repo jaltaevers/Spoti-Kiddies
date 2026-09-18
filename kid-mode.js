@@ -1,3 +1,5 @@
+import { createVisualizer } from './visualizer.js';
+
 const TAP_DEBOUNCE_MS = 800;
 const HOLD_MS = 2250; // 75% of the original 3000ms
 const FADE_MS = 30_000;
@@ -26,7 +28,8 @@ function isPortrait() {
   return window.matchMedia('(orientation: portrait)').matches;
 }
 
-export function createKidMode({ els, player, getConfig, onOpenParentGate }) {
+export function createKidMode({ els, player, getConfig, onOpenParentGate, onToggleVisualizer }) {
+  const visualizer = createVisualizer({ canvas: els.visualizerCanvas });
   const lastTapAt = new Map();
   let activeTileIndex = -1;
   // The source of truth for "what's playing" — activeTileIndex is only
@@ -217,16 +220,37 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate }) {
     }
   }
 
+  // The visualizer is a per-kid preference (like tileDisplay or
+  // hideExplicit) but, unlike those, it's flipped from a single tap on the
+  // now-playing bar rather than edited as a draft in parent mode and
+  // committed with Save — there's nothing to confirm, so it takes effect
+  // and persists immediately, the same way onChangePin does.
+  function refreshVisualizerPanel() {
+    const enabled = !!getConfig().settings.showVisualizer;
+    els.vizToggleBtn.setAttribute('aria-pressed', String(enabled));
+    els.vizToggleBtn.classList.toggle('is-active', enabled);
+    if (enabled && !els.overlay.hidden) {
+      els.visualizerCanvas.hidden = false;
+      visualizer.start();
+    } else {
+      els.visualizerCanvas.hidden = true;
+      visualizer.stop();
+    }
+  }
+
   function openNowPlaying() {
     els.overlay.hidden = false;
     renderNowPlayingArt();
     startProgressTicker();
     armSleepTimer();
+    refreshVisualizerPanel();
   }
 
   function closeNowPlaying() {
     els.overlay.hidden = true;
     stopProgressTicker();
+    els.visualizerCanvas.hidden = true;
+    visualizer.stop();
   }
 
   function renderNowPlayingArt() {
@@ -331,6 +355,7 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate }) {
       paused: state.paused,
     };
     els.playPause.textContent = state.paused ? '▶' : '⏸';
+    visualizer.setPlaying(!state.paused);
 
     // "Continue to next tile" queues the whole grid and lets Spotify
     // auto-advance through it on its own — when it does, this is the only
@@ -379,11 +404,18 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate }) {
   els.parentGateBtn.addEventListener('pointercancel', cancelHold);
   els.backBtn.addEventListener('click', closeNowPlaying);
   els.playPause.addEventListener('click', handlePlayPauseTap);
+  els.vizToggleBtn.addEventListener('click', () => {
+    onToggleVisualizer(!getConfig().settings.showVisualizer);
+    refreshVisualizerPanel();
+  });
 
   let resizeDebounce = null;
   window.addEventListener('resize', () => {
     clearTimeout(resizeDebounce);
-    resizeDebounce = setTimeout(renderGrid, 150);
+    resizeDebounce = setTimeout(() => {
+      renderGrid();
+      visualizer.handleResize();
+    }, 150);
   });
 
   return {
