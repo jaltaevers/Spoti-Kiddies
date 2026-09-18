@@ -11,10 +11,10 @@ that swap wouldn't require touching the rest of the app.
 
 ## One-time setup
 
-See the "One-time setup" section in [`README.md`](README.md) first —
-create the Spotify app, set `clientId` in `spike/config.js`, register the
-Redirect URI, enable GitHub Pages. Come back here once you can load the
-page.
+See the "One-time setup" section in [`README.md`](README.md) first: enable
+GitHub Pages, create the Spotify app, register the Redirect URI, and send
+the Client ID back in chat so it can be wired into `spike/config.js` for
+you. Come back here once you can load the page.
 
 **Always open the page at the URL ending in `/spike/` (trailing slash),
 not `/spike/index.html` and not `/spike` without the slash.** The redirect

@@ -19,26 +19,45 @@ gated on this spike passing on the real tablet.
 
 ## One-time setup (to run the spike)
 
-1. Create an app at the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
+Confirmed via the GitHub API: this repo (`jaltaevers/Spoti-Kiddies`) does
+not have Pages enabled yet, so the exact live URL the spike will be served
+at, once enabled, is:
+
+```
+https://jaltaevers.github.io/Spoti-Kiddies/spike/
+```
+
+Steps only you can do (they need your GitHub/Spotify account access, which
+Claude has no credentials for):
+
+1. **Enable GitHub Pages:** repo → Settings → Pages → under "Build and
+   deployment", set Source to "Deploy from a branch", branch
+   `claude/kids-music-tiles-spotify-nnvp95`, folder `/ (root)` → Save.
+   (Using this branch, not `main`, so the spike goes live immediately
+   without needing a pull request merged first — switch it to `main` later
+   once this is merged.) There is no API/tool access to this setting from
+   here, so this one has to be a manual click.
+2. **Create an app** at the
+   [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
    New apps are in Development Mode, which as of the Feb/Mar 2026 changes
    requires the app owner's account to have active Premium, and caps the
    app at a small number of allowed users — both are non-issues for a
-   private single-family app like this one.
-2. Copy the app's **Client ID** (there is no client secret anywhere in this
-   project — it only ever uses Authorization Code with PKCE, entirely
-   client-side).
-3. In the app's settings, add this **Redirect URI** (must match exactly,
-   trailing slash included):
-   `https://<your-username>.github.io/<repo-name>/spike/`
-4. If your Spotify account isn't already the app owner's account, add it
-   under the app's user access list (Development Mode gates non-owner
-   users).
-5. Edit `spike/config.js` and set `clientId` to the value from step 2.
-6. Enable GitHub Pages for this repo (Settings → Pages → build from the
-   default branch, root folder). This isn't something Claude can toggle
-   from here — it's a one-time manual step in the repo settings.
-7. On the tablet, open `.../spike/` (with the trailing slash) and follow
-   `SPIKE.md`.
+   private single-family app.
+3. In that app's settings, add this exact **Redirect URI** (trailing slash
+   included):
+   `https://jaltaevers.github.io/Spoti-Kiddies/spike/`
+4. If the Spotify account you'll test with isn't the app-owner account,
+   add it under the app's user access list (Development Mode gates
+   non-owner users).
+5. Copy the app's **Client ID** and send it here in chat — there's no
+   client secret anywhere in this project, so the Client ID isn't
+   sensitive to paste.
+
+What Claude does once you paste the Client ID: edit `spike/config.js`,
+commit, and push — no code editing needed on your end.
+
+Then: on the tablet, open the URL above (trailing slash, exactly as
+written) and follow `SPIKE.md`.
 
 Local dev over `http://127.0.0.1:<port>/` also works (register that as a
 second Redirect URI) but isn't needed just to run the tablet test above —
