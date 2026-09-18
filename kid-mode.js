@@ -1,7 +1,10 @@
 const TAP_DEBOUNCE_MS = 800;
 const HOLD_MS = 3000;
 const FADE_MS = 30_000;
-const TILE_PALETTE = ['#FF6B6B', '#FFD166', '#06D6A0', '#4ECDC4', '#5B8DEF', '#B892FF', '#FF8FB1'];
+// A dustier, more muted palette than a primary-color toybox — still
+// clearly distinct tile-to-tile, but reads as considered rather than a
+// bag of crayons.
+const TILE_PALETTE = ['#C97B63', '#D9A441', '#6F9C82', '#4E8E92', '#5C7FB0', '#8C79B0', '#C4708F'];
 const SPARKLES = ['✨', '⭐', '🎉'];
 // Cover mode: album art (or a manual emoji+color override), no text — for
 // kids who recognize songs by photo. Simple mode: an emoji + the song's
@@ -29,6 +32,13 @@ function isPortrait() {
 export function createKidMode({ els, player, getConfig, onOpenParentGate }) {
   const lastTapAt = new Map();
   let activeTileIndex = -1;
+  // The source of truth for "what's playing" — activeTileIndex is only
+  // ever a position within *some* tile array, which is meaningless (or
+  // actively misleading, pointing at an unrelated song) once a different
+  // kid's differently-ordered grid renders. Every renderGrid() re-derives
+  // activeTileIndex from this against the current tiles, and drops it —
+  // hiding the now-playing bar — if it's not one of this kid's songs.
+  let activeTrackUri = null;
   let holdTimer = null;
   let sleepTimerHandle = null;
   let fadeIntervalHandle = null;
@@ -88,6 +98,21 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate }) {
       els.grid.appendChild(btn);
     });
 
+    if (activeTrackUri) {
+      const idx = tiles.findIndex((t) => t.uri === activeTrackUri);
+      if (idx === -1) {
+        // Whatever was last playing isn't one of this kid's songs (most
+        // often: a different kid's grid is now showing) — nothing here
+        // should claim to be "now playing".
+        activeTileIndex = -1;
+        activeTrackUri = null;
+        closeNowPlaying();
+      } else {
+        activeTileIndex = idx;
+        if (!els.overlay.hidden) renderNowPlayingArt();
+      }
+    }
+
     updateActiveTileVisual();
     renderGreeting();
   }
@@ -141,6 +166,7 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate }) {
 
   function markTilePlaying(index) {
     activeTileIndex = index;
+    activeTrackUri = getConfig().tiles[index] ? getConfig().tiles[index].uri : null;
     updateActiveTileVisual();
     openNowPlaying();
     hideError();
@@ -308,6 +334,22 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate }) {
       paused: state.paused,
     };
     els.playPause.textContent = state.paused ? '▶' : '⏸';
+
+    // "Continue to next tile" queues the whole grid and lets Spotify
+    // auto-advance through it on its own — when it does, this is the only
+    // signal that the current track actually changed. Without this, the
+    // now-playing art (and the grid's is-playing highlight) stayed frozen
+    // on whichever tile was originally tapped instead of following along.
+    if (track && track.uri) {
+      const config = getConfig();
+      const newIndex = config.tiles.findIndex((t) => t.uri === track.uri);
+      if (newIndex !== -1 && newIndex !== activeTileIndex) {
+        activeTileIndex = newIndex;
+        activeTrackUri = track.uri;
+        updateActiveTileVisual();
+        renderNowPlayingArt();
+      }
+    }
   });
 
   player.onEvent(({ type }) => {
