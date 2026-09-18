@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>Kids Music Tiles — Spike</title>
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#121212" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icon.svg" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main id="app">
+      <section id="login-view" hidden>
+        <h1>Kids Music Tiles — Feasibility Spike</h1>
+        <p>
+          This is a debug page, not the kid-facing app. It exists to test whether Spotify playback works reliably on
+          this tablet before the real app gets built. See SPIKE.md for what to test.
+        </p>
+        <button id="login-btn" class="big-btn">Log in with Spotify</button>
+      </section>
+
+      <section id="player-view" hidden>
+        <header class="status-bar">
+          <div><strong>Account:</strong> <span id="account-name">—</span></div>
+          <div><strong>Device ID:</strong> <span id="device-id">not ready</span></div>
+          <button id="logout-btn" class="small-btn">Log out</button>
+        </header>
+
+        <div class="track-input-row">
+          <label for="track-uri">Track URI to test (spotify:track:... or an open.spotify.com/track/... link)</label>
+          <input
+            id="track-uri"
+            type="text"
+            inputmode="text"
+            autocomplete="off"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+            placeholder="spotify:track:xxxxxxxxxxxxxxxxxxxxxx"
+          />
+        </div>
+
+        <div class="controls">
+          <button id="play-btn" class="big-btn" disabled>▶ Play</button>
+          <button id="pause-btn" class="small-btn" disabled>Pause</button>
+          <button id="resume-btn" class="small-btn" disabled>Resume</button>
+        </div>
+
+        <div id="now-playing" class="now-playing" aria-live="polite"></div>
+      </section>
+
+      <section id="log-panel">
+        <div class="log-header">
+          <strong>Event log</strong>
+          <div>
+            <button id="copy-log-btn" class="tiny-btn">Copy</button>
+            <button id="clear-log-btn" class="tiny-btn">Clear</button>
+          </div>
+        </div>
+        <div id="log-output" role="log"></div>
+      </section>
+    </main>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
