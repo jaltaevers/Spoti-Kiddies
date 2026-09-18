@@ -93,10 +93,15 @@ export function createSpotifyApi(config, { onReauthRequired } = {}) {
     const playlistId = extractPlaylistId(playlistIdOrLink);
     if (!playlistId) throw new Error('Doesn’t look like a Spotify playlist link or ID');
 
+    // The endpoint's URL path is /tracks, even though the field inside its
+    // paginated response body (and the fields= filter below) is `items` —
+    // easy to conflate, but they're two different things: a previous
+    // version of this file used /items as the path itself, which doesn't
+    // exist, and silently produced zero tracks instead of an error.
     const fields = encodeURIComponent(
       'items(track(uri,name,duration_ms,explicit,artists(name),album(images))),next'
     );
-    let path = `/playlists/${playlistId}/items?fields=${fields}&limit=50`;
+    let path = `/playlists/${playlistId}/tracks?fields=${fields}&limit=50`;
     const tracks = [];
     while (path && tracks.length < maxItems) {
       const res = await request(path);
@@ -114,18 +119,26 @@ export function createSpotifyApi(config, { onReauthRequired } = {}) {
   async function getTracksByIds(ids) {
     // No batch "get several tracks" call here on purpose: that endpoint was
     // among the ones pulled for Development Mode in the Feb 2026 migration,
-    // so individual lookups (parallelized) are the safe path at our scale
-    // (at most 16 tiles).
-    const results = await Promise.all(
-      ids.map(async (id) => {
-        try {
-          const res = await request(`/tracks/${id}`);
-          return await res.json();
-        } catch (e) {
-          return null;
-        }
-      })
-    );
+    // so individual lookups are the safe path instead. Run in bounded
+    // batches rather than all at once — there's no cap on how many tiles a
+    // kid can have, so a large setup-link import could otherwise fire
+    // dozens of simultaneous requests in one burst.
+    const CHUNK_SIZE = 15;
+    const results = [];
+    for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+      const chunk = ids.slice(i, i + CHUNK_SIZE);
+      const chunkResults = await Promise.all(
+        chunk.map(async (id) => {
+          try {
+            const res = await request(`/tracks/${id}`);
+            return await res.json();
+          } catch (e) {
+            return null;
+          }
+        })
+      );
+      results.push(...chunkResults);
+    }
     return results;
   }
 

@@ -3,13 +3,23 @@ const HOLD_MS = 3000;
 const FADE_MS = 30_000;
 const TILE_PALETTE = ['#FF6B6B', '#FFD166', '#06D6A0', '#4ECDC4', '#5B8DEF', '#B892FF', '#FF8FB1'];
 const SPARKLES = ['✨', '⭐', '🎉'];
+// Cover mode: album art (or a manual emoji+color override), no text — for
+// kids who recognize songs by photo. Simple mode: an emoji + the song's
+// name on every tile — for kids who can read and would rather pick by
+// name. This default emoji only applies when a tile has no manual
+// override, which always wins in either mode.
+const SIMPLE_MODE_EMOJI = ['🎵', '🎶', '🎤', '🥁', '🎸', '🎹', '🎺', '🌟'];
 
+// Scales to any tile count (there's no fixed cap on how many a kid can
+// have) by keeping the grid roughly square rather than stopping at a
+// hardcoded ceiling — e.g. 4→2×2, 9→3×3, 16→4×4, 30→6×5. Very large
+// counts still fit: .kid-grid falls back to scrolling rather than
+// squeezing tiles down indefinitely.
 function computeLayout(count) {
-  if (count <= 4) return { cols: 2, rows: 2 };
-  if (count <= 6) return { cols: 3, rows: 2 };
-  if (count <= 9) return { cols: 3, rows: 3 };
-  if (count <= 12) return { cols: 4, rows: 3 };
-  return { cols: 4, rows: 4 };
+  if (count <= 0) return { cols: 1, rows: 1 };
+  const cols = Math.ceil(Math.sqrt(count));
+  const rows = Math.ceil(count / cols);
+  return { cols, rows };
 }
 
 function isPortrait() {
@@ -25,7 +35,7 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate }) {
   let progressTickHandle = null;
   let lastState = { position: 0, durationMs: 0, updatedAt: 0, paused: true };
 
-  function paintTileVisual(btn, tile) {
+  function paintTileVisual(btn, tile, index, displayMode) {
     btn.style.background = '';
     btn.style.backgroundImage = '';
     btn.innerHTML = '';
@@ -35,9 +45,22 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate }) {
       span.className = 'kid-tile-emoji';
       span.textContent = tile.override.emoji;
       btn.appendChild(span);
+    } else if (displayMode === 'simple') {
+      const span = document.createElement('span');
+      span.className = 'kid-tile-emoji';
+      span.textContent = SIMPLE_MODE_EMOJI[index % SIMPLE_MODE_EMOJI.length];
+      btn.appendChild(span);
     } else if (tile.albumArtUrl) {
       btn.style.backgroundImage = `url("${tile.albumArtUrl}")`;
     }
+
+    if (displayMode === 'simple') {
+      const label = document.createElement('span');
+      label.className = 'kid-tile-label';
+      label.textContent = tile.title || '';
+      btn.appendChild(label);
+    }
+
     const eq = document.createElement('span');
     eq.className = 'kid-tile-eq';
     eq.innerHTML = '<i></i><i></i><i></i>';
@@ -47,6 +70,7 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate }) {
   function renderGrid() {
     const config = getConfig();
     const tiles = config.tiles;
+    const displayMode = config.settings.tileDisplay === 'simple' ? 'simple' : 'cover';
     const { cols, rows } = computeLayout(tiles.length);
     const portrait = isPortrait();
     els.grid.style.setProperty('--cols', String(portrait ? rows : cols));
@@ -59,7 +83,7 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate }) {
       btn.className = 'kid-tile';
       btn.style.setProperty('--tile-color', TILE_PALETTE[index % TILE_PALETTE.length]);
       btn.setAttribute('aria-label', tile.title || 'song');
-      paintTileVisual(btn, tile);
+      paintTileVisual(btn, tile, index, displayMode);
       btn.addEventListener('click', () => handleTap(index, btn));
       els.grid.appendChild(btn);
     });
@@ -105,6 +129,23 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate }) {
     });
   }
 
+  // Phase 0 only ever proved one shape of play request reliable on the
+  // target tablet: a single track, `playTracks([uri], 0)` (see spike/app.js).
+  // "Continue to next tile" (the default) instead queues every tile in the
+  // grid in one call and sets repeat mode before anything has played —
+  // never exercised in that testing. pendingFullQueuePlay lets the
+  // playback_error handler below fall back to the proven single-track
+  // shape if that untested path fails, without double-starting playback
+  // on the ordinary path where it succeeds.
+  let pendingFullQueuePlay = null;
+
+  function markTilePlaying(index) {
+    activeTileIndex = index;
+    updateActiveTileVisual();
+    openNowPlaying();
+    hideError();
+  }
+
   async function handleTap(index, btn) {
     const config = getConfig();
     const tile = config.tiles[index];
@@ -113,29 +154,42 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate }) {
     if (now - (lastTapAt.get(tile.id) || 0) < TAP_DEBOUNCE_MS) return;
     lastTapAt.set(tile.id, now);
     spawnSparkles(btn);
+    pendingFullQueuePlay = null;
 
     try {
       await player.activateElement();
       const mode = config.settings.endOfSong;
       if (mode === 'stop') {
-        await player.setRepeatMode('off');
         await player.playTracks([tile.uri], 0);
+        player.setRepeatMode('off').catch(() => {});
       } else if (mode === 'repeat') {
-        await player.setRepeatMode('track');
         await player.playTracks([tile.uri], 0);
+        player.setRepeatMode('track').catch(() => {});
       } else {
-        await player.setRepeatMode('context');
+        pendingFullQueuePlay = { tile, at: Date.now() };
         await player.playTracks(
           config.tiles.map((t) => t.uri),
           index
         );
+        player.setRepeatMode('context').catch(() => {});
       }
       await player.setVolume(config.settings.maxVolume);
-      activeTileIndex = index;
-      updateActiveTileVisual();
-      openNowPlaying();
-      hideError();
+      markTilePlaying(index);
     } catch (e) {
+      if (pendingFullQueuePlay) {
+        // The untested full-queue request itself was rejected (rather
+        // than accepted and failing later) — fall back right away.
+        pendingFullQueuePlay = null;
+        try {
+          await player.playTracks([tile.uri], 0);
+          await player.setVolume(config.settings.maxVolume);
+          markTilePlaying(index);
+          return;
+        } catch (e2) {
+          showError(e2);
+          return;
+        }
+      }
       showError(e);
     }
   }
@@ -257,6 +311,24 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate }) {
   });
 
   player.onEvent(({ type }) => {
+    // The SDK can accept a play request (no throw) and only report failure
+    // moments later via this event — the case handleTap's own catch can't
+    // see. If it's this tap's untested full-queue request, fall back to
+    // the single-track shape Phase 0 proved reliable instead of just
+    // showing an error for something a retry would likely fix.
+    if (type === 'playback_error' && pendingFullQueuePlay && Date.now() - pendingFullQueuePlay.at < 5000) {
+      const { tile } = pendingFullQueuePlay;
+      pendingFullQueuePlay = null;
+      const config = getConfig();
+      const index = config.tiles.findIndex((t) => t.id === tile.id);
+      player
+        .playTracks([tile.uri], 0)
+        .then(() => player.setVolume(config.settings.maxVolume))
+        .then(() => markTilePlaying(index))
+        .catch((e) => showError(e));
+      return;
+    }
+    pendingFullQueuePlay = null;
     if (['account_error', 'playback_error', 'initialization_error', 'authentication_error'].includes(type)) {
       showError(new Error(type));
     }

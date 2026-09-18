@@ -17,7 +17,22 @@ function formatDuration(ms) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDone, onLogout, onRelogin, onReauthRequired }) {
+export function createParentMode({
+  els,
+  api,
+  getSavedConfig,
+  saveAndApply,
+  getKids,
+  getActiveKidId,
+  onSwitchKid,
+  onAddKid,
+  onRemoveKid,
+  onChangePin,
+  onDone,
+  onLogout,
+  onRelogin,
+  onReauthRequired,
+}) {
   let draft = null;
   let searchOffset = 0;
   let searchQuery = '';
@@ -25,6 +40,50 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
 
   function existingUris() {
     return new Set(draft.tiles.map((t) => t.uri));
+  }
+
+  function kidLabel(kid) {
+    const name = kid.settings.kidName && kid.settings.kidName.trim();
+    return name || 'Unnamed';
+  }
+
+  function renderKidTabs() {
+    const kids = getKids();
+    const activeId = getActiveKidId();
+    els.kidTabs.innerHTML = '';
+    kids.forEach((kid) => {
+      const tab = document.createElement('button');
+      tab.type = 'button';
+      tab.className = 'kid-tab' + (kid.id === activeId ? ' active' : '');
+
+      const label = document.createElement('span');
+      label.textContent = kidLabel(kid);
+      tab.appendChild(label);
+
+      if (kids.length > 1) {
+        const removeBtn = document.createElement('span');
+        removeBtn.className = 'kid-tab-remove';
+        removeBtn.textContent = '✕';
+        removeBtn.setAttribute('role', 'button');
+        removeBtn.setAttribute('aria-label', `Remove ${kidLabel(kid)}`);
+        removeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (window.confirm(`Remove ${kidLabel(kid)} and all their songs? This can’t be undone.`)) {
+            onRemoveKid(kid.id);
+          }
+        });
+        tab.appendChild(removeBtn);
+      }
+
+      tab.addEventListener('click', () => switchKid(kid.id));
+      els.kidTabs.appendChild(tab);
+    });
+  }
+
+  function switchKid(kidId) {
+    if (kidId === getActiveKidId()) return;
+    if (hasUnsavedChanges() && !window.confirm('Switch kids without saving changes first?')) return;
+    onSwitchKid(kidId);
   }
 
   function renderAccount(profile) {
@@ -43,10 +102,10 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
 
   function renderTileCount() {
     els.tileCount.textContent = String(draft.tiles.length);
-    const tooFew = draft.tiles.length < 4;
+    const tooFew = draft.tiles.length < 1;
     els.tileCountWarning.hidden = !tooFew;
     if (tooFew) {
-      els.tileCountWarning.textContent = `Add at least ${4 - draft.tiles.length} more song(s) — kid mode needs 4–16.`;
+      els.tileCountWarning.textContent = 'Add at least one song.';
     }
   }
 
@@ -216,9 +275,8 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
     addBtn.type = 'button';
     addBtn.className = 'tile-action-btn';
     const already = existingUris().has(track.uri);
-    const full = draft.tiles.length >= 16;
-    addBtn.textContent = already ? 'Added' : full ? 'Full' : 'Add';
-    addBtn.disabled = already || full;
+    addBtn.textContent = already ? 'Added' : 'Add';
+    addBtn.disabled = already;
     addBtn.addEventListener('click', () => {
       draft.tiles.push(tileFromTrack(track));
       renderTileList();
@@ -295,6 +353,17 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
     }
   }
 
+  function renderQuickPlaylistLink() {
+    // Re-derive the id from the stored URL rather than using it as-is:
+    // extractPlaylistId only ever returns null or a bare alphanumeric id,
+    // which keeps this safe to drop straight into an href even if
+    // sourcePlaylistUrl came from an imported file or a setup link (both
+    // of which can carry data from outside this app).
+    const id = draft.sourcePlaylistUrl ? api.extractPlaylistId(draft.sourcePlaylistUrl) : null;
+    els.quickPlaylistOpenRow.hidden = !id;
+    if (id) els.quickPlaylistOpenLink.href = `https://open.spotify.com/playlist/${id}`;
+  }
+
   async function quickSetupFromPlaylist() {
     els.quickPlaylistError.hidden = true;
     els.quickPlaylistStatus.textContent = '';
@@ -311,17 +380,20 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
     els.quickPlaylistStatus.textContent = 'Loading…';
     try {
       const tracks = await api.getPlaylistItems(link);
-      const eligible = tracks.filter((t) => !(draft.settings.hideExplicit && t.explicit)).slice(0, 16);
-      if (eligible.length < 4) {
+      const eligible = tracks.filter((t) => !(draft.settings.hideExplicit && t.explicit));
+      if (eligible.length < 1) {
         els.quickPlaylistStatus.textContent = '';
         els.quickPlaylistError.hidden = false;
-        els.quickPlaylistError.textContent = `That playlist only has ${eligible.length} usable song(s) — need at least 4. Add more below with Search.`;
-        if (eligible.length > 0) draft.tiles = eligible.map((t) => tileFromTrack(t));
-        renderTileList();
+        els.quickPlaylistError.textContent =
+          tracks.length === 0
+            ? 'Couldn’t find any songs in that playlist — double check the link, or that it’s a playlist you own or collaborate on.'
+            : 'Every song in that playlist is marked explicit, and explicit tracks are hidden — turn that off in Settings below, or add songs individually with Search.';
         return;
       }
       draft.tiles = eligible.map((t) => tileFromTrack(t));
+      draft.sourcePlaylistUrl = link;
       renderTileList();
+      renderQuickPlaylistLink();
       els.quickPlaylistStatus.textContent = `Loaded ${eligible.length} song(s) from this playlist — tap Save when you're happy, or fine-tune below first.`;
     } catch (e) {
       els.quickPlaylistStatus.textContent = '';
@@ -333,7 +405,6 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
   function addAllFromPlaylist() {
     const uris = existingUris();
     for (const track of lastPlaylistResults) {
-      if (draft.tiles.length >= 16) break;
       if (uris.has(track.uri) || (draft.settings.hideExplicit && track.explicit)) continue;
       draft.tiles.push(tileFromTrack(track));
       uris.add(track.uri);
@@ -344,6 +415,9 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
 
   function renderSettings() {
     els.kidNameInput.value = draft.settings.kidName || '';
+    els.tileDisplayRadios.forEach((r) => {
+      r.checked = r.value === draft.settings.tileDisplay;
+    });
     els.endOfSongRadios.forEach((r) => {
       r.checked = r.value === draft.settings.endOfSong;
     });
@@ -356,6 +430,11 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
   function bindSettings() {
     els.kidNameInput.addEventListener('input', () => {
       draft.settings.kidName = els.kidNameInput.value;
+    });
+    els.tileDisplayRadios.forEach((r) => {
+      r.addEventListener('change', () => {
+        if (r.checked) draft.settings.tileDisplay = r.value;
+      });
     });
     els.endOfSongRadios.forEach((r) => {
       r.addEventListener('change', () => {
@@ -381,8 +460,11 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
         window.alert('PIN must be exactly 4 digits.');
         return;
       }
-      draft.settings.pinHash = await hashPin(pin);
-      window.alert('PIN updated — remember to tap Save.');
+      // Shared by the whole device (it gates parent mode itself, before any
+      // kid is picked) rather than part of a kid's own draft, so this takes
+      // effect right away instead of waiting on that kid's Save.
+      await onChangePin(await hashPin(pin));
+      window.alert('PIN updated.');
     });
   }
 
@@ -412,8 +494,8 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
 
   function bindSaveActions() {
     els.saveBtn.addEventListener('click', () => {
-      if (draft.tiles.length < 4) {
-        window.alert('Add at least 4 songs before saving.');
+      if (draft.tiles.length < 1) {
+        window.alert('Add at least one song before saving.');
         return;
       }
       saveAndApply(draft);
@@ -422,9 +504,10 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
     });
 
     els.exportBtn.addEventListener('click', () => {
-      const blob = new Blob([JSON.stringify({ version: 1, tiles: draft.tiles, settings: draft.settings }, null, 2)], {
-        type: 'application/json',
-      });
+      const blob = new Blob(
+        [JSON.stringify({ version: 2, tiles: draft.tiles, sourcePlaylistUrl: draft.sourcePlaylistUrl, settings: draft.settings }, null, 2)],
+        { type: 'application/json' }
+      );
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -441,9 +524,10 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
       try {
         const text = await file.text();
         const parsed = validateImportedConfig(JSON.parse(text));
-        draft = parsed;
+        draft = { ...draft, ...parsed }; // keep this kid's id — only the tiles/settings/source are imported
         renderTileList();
         renderSettings();
+        renderQuickPlaylistLink();
         els.saveStatus.textContent = 'Imported — tap Save to apply.';
       } catch (e) {
         window.alert('Couldn’t import that file: ' + e.message);
@@ -451,8 +535,8 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
     });
 
     els.copyLinkBtn.addEventListener('click', async () => {
-      if (draft.tiles.length < 4) {
-        window.alert('Add at least 4 songs first.');
+      if (draft.tiles.length < 1) {
+        window.alert('Add at least one song first.');
         return;
       }
       const link = encodeShareLink(draft);
@@ -475,6 +559,11 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
   }
 
   els.quickPlaylistBtn.addEventListener('click', quickSetupFromPlaylist);
+  els.addKidBtn.addEventListener('click', () => {
+    const name = window.prompt('New kid’s name:');
+    if (name === null) return;
+    onAddKid(name.trim());
+  });
 
   bindSettings();
   bindSearch();
@@ -484,6 +573,7 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
     async show(profile) {
       draft = JSON.parse(JSON.stringify(getSavedConfig()));
       renderAccount(profile);
+      renderKidTabs();
       renderTileList();
       renderSettings();
       lastSearchResults = [];
@@ -494,9 +584,10 @@ export function createParentMode({ els, api, getSavedConfig, saveAndApply, onDon
       els.playlistResults.innerHTML = '';
       els.playlistError.hidden = true;
       els.playlistAddAllBtn.hidden = true;
-      els.quickPlaylistInput.value = '';
+      els.quickPlaylistInput.value = draft.sourcePlaylistUrl || '';
       els.quickPlaylistStatus.textContent = '';
       els.quickPlaylistError.hidden = true;
+      renderQuickPlaylistLink();
       switchTab('search');
     },
   };

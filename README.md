@@ -10,8 +10,13 @@ videos, no way for a kid to wander off.
 
 Phase 0 confirmed the Spotify Web Playback SDK plays reliably (including
 recovering automatically from a brief "Device not found" race right after
-connecting, which showed up during testing). The full app now lives at the
-site root:
+connecting, which showed up during testing) — for a single tapped song.
+The real app's default "continue to next tile" behavior instead queues
+the whole grid in one request, which Phase 0 never exercised; if that
+untested request fails, tapping a tile now falls back to the single-song
+shape Phase 0 did prove reliable rather than showing an error, so a kid
+still hears something even if the auto-advance part doesn't take. The
+full app now lives at the site root:
 
 ```
 https://jaltaevers.github.io/Spoti-Kiddies/
@@ -72,11 +77,38 @@ see the kid-facing grid.
 For more control, further down: search for individual songs, drag to
 reorder, override any tile with an emoji + color instead of album art,
 and set end-of-song behavior, a max volume cap, a sleep timer, and hide
-explicit tracks (default on).
+explicit tracks (default on). There's no limit on how many songs a kid
+can have — kid mode's grid sizes itself to fit however many tiles exist,
+each tile capped at a comfortable size so a handful of songs doesn't
+turn into a few giant tiles filling the screen.
+
+**Tile style** (in Settings) switches every tile between **Cover art**
+(album art, or a tile's own emoji + color override if it has one — the
+default) and **Simple** (an emoji plus the song's name on every tile, for
+a kid who reads and would rather pick by name than recognize a photo).
+A manual emoji + color override always takes priority over either mode's
+default art.
 
 Parent mode is reachable any time by press-and-holding the small circle in
 the top-right corner of kid mode for 3 seconds, then entering the PIN (set
-on first use).
+on first use). The PIN is shared by the whole device, not per kid.
+
+### Multiple kids
+
+The **Kids** section at the top of parent mode holds one tab per kid, each
+with their own name, songs, and settings (volume cap, sleep timer, end-of-
+song behavior, explicit filter). Tap a tab to switch who you're editing —
+that's also who kid mode shows once you hit **Done**. **+ Add another
+kid** creates a new, empty one; the ✕ on a tab removes that kid and their
+songs for good (only shown once there's more than one kid, so there's
+always someone for kid mode to display). Switching tabs with unsaved
+changes asks first, same as **Done** does.
+
+Whenever **Load playlist as tiles** succeeds, that playlist is remembered
+for that kid — an **Open playlist in Spotify ↗** link appears in Quick
+setup so you can jump into the real Spotify app to add, remove, or
+reorder songs, then come back and tap **Load playlist as tiles** again
+(the link and the playlist field both stay filled in) to pull the update.
 
 ### Known simplifications worth knowing about
 

@@ -2,7 +2,7 @@ import { SPOTIFY_CONFIG } from './config.js';
 import * as auth from './auth.js';
 import { createSpotifyApi } from './spotify-api.js';
 import { createPlayer } from './player.js';
-import { loadConfig, saveConfig, decodeShareLinkHash, tileFromTrack } from './store.js';
+import { loadStore, saveStore, getActiveKid, addKid, removeKid, decodeShareLinkHash, tileFromTrack } from './store.js';
 import { createKidMode } from './kid-mode.js';
 import { createParentGate } from './parent-gate.js';
 import { createParentMode } from './parent-mode.js';
@@ -20,16 +20,19 @@ function showOnly(name) {
   }
 }
 
-let config = loadConfig();
-function getConfig() {
-  return config;
-}
-function getSavedConfig() {
-  return config;
+// `store` holds every kid's tiles/settings plus the one PIN shared by the
+// whole device. `getActiveKidConfig` is the single place that resolves
+// "whichever kid is current" — kid mode, parent mode's editor, and the
+// title bar all read through it so they can never disagree about who's up.
+let store = loadStore();
+let lastSpotifyProfile = null;
+
+function getActiveKidConfig() {
+  return getActiveKid(store);
 }
 
 function applyDocumentTitle() {
-  const name = config.settings.kidName && config.settings.kidName.trim();
+  const name = getActiveKidConfig().settings.kidName && getActiveKidConfig().settings.kidName.trim();
   document.title = name ? `${name}’s Music Tiles` : 'Kids Music Tiles';
 }
 
@@ -98,10 +101,15 @@ const parentGate = createParentGate({
     form: document.getElementById('parent-gate-form'),
     cancelBtn: document.getElementById('parent-gate-cancel-btn'),
   },
-  getConfig,
+  // The PIN gates parent mode itself, before any kid is picked, so it
+  // lives on the store directly rather than inside a kid's settings —
+  // this shim is the only place that needs to know that.
+  getConfig: () => ({ settings: { pinHash: store.pinHash } }),
   saveSettings(partial) {
-    config.settings = { ...config.settings, ...partial };
-    saveConfig(config);
+    if (partial.pinHash !== undefined) {
+      store = { ...store, pinHash: partial.pinHash };
+      saveStore(store);
+    }
   },
   onSuccess: () => enterParentMode(),
   onCancel: () => showOnly('kid'),
@@ -109,11 +117,15 @@ const parentGate = createParentGate({
 
 const parentMode = createParentMode({
   els: {
+    kidTabs: document.getElementById('kid-tabs'),
+    addKidBtn: document.getElementById('add-kid-btn'),
     kidNameInput: document.getElementById('kid-name-input'),
     quickPlaylistInput: document.getElementById('quick-playlist-input'),
     quickPlaylistBtn: document.getElementById('quick-playlist-btn'),
     quickPlaylistStatus: document.getElementById('quick-playlist-status'),
     quickPlaylistError: document.getElementById('quick-playlist-error'),
+    quickPlaylistOpenRow: document.getElementById('quick-playlist-open-row'),
+    quickPlaylistOpenLink: document.getElementById('quick-playlist-open-link'),
     volumeValue: document.getElementById('volume-value'),
     accountInfo: document.getElementById('account-info'),
     tokenWarning: document.getElementById('token-warning'),
@@ -133,6 +145,7 @@ const parentMode = createParentMode({
     tabPlaylistBtn: document.getElementById('tab-playlist'),
     searchPanel: document.getElementById('search-panel'),
     playlistPanel: document.getElementById('playlist-panel'),
+    tileDisplayRadios: Array.from(document.querySelectorAll('input[name="tile-display"]')),
     endOfSongRadios: Array.from(document.querySelectorAll('input[name="end-of-song"]')),
     volumeSlider: document.getElementById('volume-slider'),
     sleepTimerSelect: document.getElementById('sleep-timer-select'),
@@ -149,16 +162,43 @@ const parentMode = createParentMode({
     reloginBtn: document.getElementById('relogin-btn'),
   },
   api,
-  getSavedConfig,
-  saveAndApply(newConfig) {
-    config = newConfig;
-    saveConfig(config);
+  getSavedConfig: getActiveKidConfig,
+  saveAndApply(newKidConfig) {
+    store = { ...store, kids: store.kids.map((k) => (k.id === newKidConfig.id ? newKidConfig : k)) };
+    saveStore(store);
     applyDocumentTitle();
     if (kidMode) kidMode.show();
   },
+  getKids: () => store.kids,
+  getActiveKidId: () => store.activeKidId,
+  // The tab title reflects whichever kid is active even while still in
+  // parent mode, so all three refresh it, not just onDone.
+  onSwitchKid(kidId) {
+    store = { ...store, activeKidId: kidId };
+    saveStore(store);
+    refreshParentMode();
+    applyDocumentTitle();
+  },
+  onAddKid(name) {
+    store = addKid(store, name);
+    saveStore(store);
+    refreshParentMode();
+    applyDocumentTitle();
+  },
+  onRemoveKid(kidId) {
+    store = removeKid(store, kidId);
+    saveStore(store);
+    refreshParentMode();
+    applyDocumentTitle();
+    if (kidMode) kidMode.show();
+  },
+  onChangePin(pinHash) {
+    store = { ...store, pinHash };
+    saveStore(store);
+  },
   onDone: () => {
-    if (getSavedConfig().tiles.length < 4) {
-      window.alert('Save at least 4 songs before returning to kid mode.');
+    if (getActiveKidConfig().tiles.length < 1) {
+      window.alert('Add at least one song before returning to kid mode.');
       return;
     }
     showOnly('kid');
@@ -174,12 +214,22 @@ const parentMode = createParentMode({
   onReauthRequired: forceReauth,
 });
 
+function refreshParentMode() {
+  parentMode.show(lastSpotifyProfile);
+}
+
 function enterParentMode() {
   showOnly('parent');
   api
     .getMe()
-    .then((profile) => parentMode.show(profile))
-    .catch(() => parentMode.show(null));
+    .then((profile) => {
+      lastSpotifyProfile = profile;
+      parentMode.show(profile);
+    })
+    .catch(() => {
+      lastSpotifyProfile = null;
+      parentMode.show(null);
+    });
 }
 
 async function applyPendingShareLink() {
@@ -195,8 +245,15 @@ async function applyPendingShareLink() {
       if (!track) return { id: 'imported_' + i, uri, title: '', artist: '', albumArtUrl: null, durationMs: 0, explicit: false, override: override || null };
       return tileFromTrack(track, override ? { override } : {});
     });
-    config = { tiles, settings: { ...config.settings, ...(compact.settings || {}) } };
-    saveConfig(config);
+    store = {
+      ...store,
+      kids: store.kids.map((k) =>
+        k.id === store.activeKidId
+          ? { ...k, tiles, sourcePlaylistUrl: compact.sourcePlaylistUrl || k.sourcePlaylistUrl, settings: { ...k.settings, ...(compact.settings || {}) } }
+          : k
+      ),
+    };
+    saveStore(store);
   } catch (e) {
     console.error('Failed to import setup link', e);
   }
@@ -205,7 +262,7 @@ async function applyPendingShareLink() {
 async function initPlayerAndKidMode() {
   player = createPlayer({
     name: 'Kids Music Tiles',
-    volume: config.settings.maxVolume,
+    volume: getActiveKidConfig().settings.maxVolume,
     api,
     getOAuthToken: (callback) => {
       auth
@@ -232,7 +289,7 @@ async function initPlayerAndKidMode() {
       sparkleLayer: document.getElementById('sparkle-layer'),
     },
     player,
-    getConfig,
+    getConfig: getActiveKidConfig,
     onOpenParentGate: () => {
       showOnly('gate');
       parentGate.show();
@@ -275,7 +332,7 @@ async function main() {
 
   await initPlayerAndKidMode();
 
-  if (config.tiles.length < 4) {
+  if (getActiveKidConfig().tiles.length < 1) {
     enterParentMode();
   } else {
     showOnly('kid');

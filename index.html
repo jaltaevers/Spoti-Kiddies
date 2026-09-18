@@ -126,6 +126,12 @@
           <button id="parent-done-btn" class="small-btn">Done</button>
         </header>
 
+        <section class="parent-section kids-section">
+          <h2>Kids</h2>
+          <div id="kid-tabs" class="kid-tabs"></div>
+          <button type="button" id="add-kid-btn" class="small-btn">+ Add another kid</button>
+        </section>
+
         <section class="parent-section quick-setup-section">
           <h2>Quick setup</h2>
           <label class="settings-field">
@@ -139,6 +145,9 @@
           <button id="quick-playlist-btn" class="big-btn">Load playlist as tiles</button>
           <div id="quick-playlist-status" class="muted"></div>
           <div id="quick-playlist-error" class="warning" hidden></div>
+          <div id="quick-playlist-open-row" class="quick-playlist-open-row" hidden>
+            <a id="quick-playlist-open-link" href="#" target="_blank" rel="noopener" class="small-btn">Open playlist in Spotify ↗</a>
+          </div>
         </section>
 
         <section class="parent-section">
@@ -152,7 +161,7 @@
         </section>
 
         <section class="parent-section">
-          <h2>Songs (<span id="tile-count">0</span>/16)</h2>
+          <h2>Songs (<span id="tile-count">0</span>)</h2>
           <div id="tile-count-warning" class="warning" hidden></div>
           <ul id="tile-list" class="tile-list"></ul>
         </section>
@@ -172,13 +181,18 @@
             <input id="playlist-input" type="text" placeholder="Paste a Spotify playlist link" class="text-input" />
             <button id="playlist-fetch-btn" class="small-btn">Fetch songs</button>
             <div id="playlist-error" class="warning" hidden></div>
-            <button id="playlist-add-all-btn" class="small-btn" hidden>Add all (up to 16)</button>
+            <button id="playlist-add-all-btn" class="small-btn" hidden>Add all</button>
             <div id="playlist-results" class="result-list"></div>
           </div>
         </section>
 
         <section class="parent-section">
           <h2>Settings</h2>
+          <fieldset class="settings-field">
+            <legend>Tile style</legend>
+            <label><input type="radio" name="tile-display" value="cover" /> Cover art</label>
+            <label><input type="radio" name="tile-display" value="simple" /> Simple (emoji + song name)</label>
+          </fieldset>
           <fieldset class="settings-field">
             <legend>When a song ends</legend>
             <label><input type="radio" name="end-of-song" value="stop" /> Stop</label>
