@@ -627,7 +627,15 @@ export function createParentMode({
   bindSaveActions();
 
   return {
-    async show(profile) {
+    // Synchronous on purpose: app.js calls this right after switching the
+    // view to parent mode, and every settings/search control's event
+    // listener (bound once, above, not per-show) reaches into `draft`
+    // assuming it already exists. profile can be stale or null (whatever
+    // was cached from the last /me fetch, or nothing yet on first login)
+    // — it's only display info, and setAccountProfile() below fills in
+    // the real thing once that fetch actually resolves, without touching
+    // draft again and discarding whatever's being edited in the meantime.
+    show(profile) {
       draft = JSON.parse(JSON.stringify(getSavedConfig()));
       renderAccount(profile);
       renderKidTabs();
@@ -646,6 +654,13 @@ export function createParentMode({
       els.quickPlaylistError.hidden = true;
       renderQuickPlaylistLink();
       switchTab('search');
+    },
+    // Updates just the Account panel once the real /me fetch resolves —
+    // deliberately not routed through show() again, which would clobber
+    // draft (and anything the parent's mid-editing) with a fresh copy of
+    // the saved config.
+    setAccountProfile(profile) {
+      renderAccount(profile);
     },
   };
 }
