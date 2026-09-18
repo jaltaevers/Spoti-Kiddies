@@ -6,7 +6,7 @@
 // 3. Register redirectUri (below) as a Redirect URI on that app, exactly,
 //    including the trailing slash.
 export const SPOTIFY_CONFIG = {
-  clientId: 'REPLACE_WITH_YOUR_SPOTIFY_CLIENT_ID',
+  clientId: 'b9dec09d4e9941129e2fab974f2f864b',
 
   // Must exactly match a Redirect URI registered in the Spotify dashboard.
   // Resolves automatically to the right value on GitHub Pages and on

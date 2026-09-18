@@ -31,12 +31,13 @@ Steps only you can do (they need your GitHub/Spotify account access, which
 Claude has no credentials for):
 
 1. **Enable GitHub Pages:** repo → Settings → Pages → under "Build and
-   deployment", set Source to "Deploy from a branch", branch
-   `claude/kids-music-tiles-spotify-nnvp95`, folder `/ (root)` → Save.
-   (Using this branch, not `main`, so the spike goes live immediately
-   without needing a pull request merged first — switch it to `main` later
-   once this is merged.) There is no API/tool access to this setting from
-   here, so this one has to be a manual click.
+   deployment", set Source to "Deploy from a branch", branch `main`,
+   folder `/ (root)` → Save. There is no API/tool access to this setting
+   from here, so this one has to be a manual click. (Development still
+   happens on a feature branch per how this Claude Code session is
+   configured, but it gets fast-forwarded onto `main` after every push, so
+   `main` always reflects the latest work and Pages always serves current
+   code from one place.)
 2. **Create an app** at the
    [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
    New apps are in Development Mode, which as of the Feb/Mar 2026 changes
