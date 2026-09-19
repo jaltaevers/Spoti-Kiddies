@@ -426,7 +426,13 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
   els.parentGateBtn.addEventListener('pointerup', cancelHold);
   els.parentGateBtn.addEventListener('pointerleave', cancelHold);
   els.parentGateBtn.addEventListener('pointercancel', cancelHold);
-  els.backBtn.addEventListener('click', closeNowPlaying);
+  els.backBtn.addEventListener('click', () => {
+    // Used to only hide this bar while the song kept playing out of sight —
+    // easy to mistake for a button that does nothing at all. Pausing first
+    // gives it an effect a kid can actually hear.
+    player.pause().catch(() => {});
+    closeNowPlaying();
+  });
   els.playPause.addEventListener('click', handlePlayPauseTap);
   els.vizToggleBtn.addEventListener('click', () => {
     onToggleVisualizer(!getConfig().settings.showVisualizer);
