@@ -217,6 +217,53 @@ h2 {
   z-index: 4;
 }
 
+.kid-lock-toast {
+  /* Feedback for "blocked songs mode": shown for a couple seconds when a
+     tap on a different tile is refused because the current song hasn't
+     been playing for a minute yet. opacity: 0 at rest so it's invisible
+     even before .is-visible's animation ever runs a first time; toggling
+     [hidden] off/on (not just the class) restarts the animation reliably
+     even on back-to-back refused taps, since re-inserting into the render
+     tree resets animation state the way just re-adding a class wouldn't. */
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 70px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  background: rgba(40, 30, 60, 0.92);
+  color: #fff;
+  font-family: 'Baloo 2', ui-rounded, 'Segoe UI', sans-serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  padding: 10px 22px;
+  border-radius: 999px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  white-space: nowrap;
+  opacity: 0;
+}
+.kid-lock-toast.is-visible {
+  animation: lock-toast-pop 1.8s ease-out forwards;
+}
+@keyframes lock-toast-pop {
+  0% {
+    transform: translateX(-50%) translateY(-10px) scale(0.9);
+    opacity: 0;
+  }
+  15% {
+    transform: translateX(-50%) translateY(0) scale(1);
+    opacity: 1;
+  }
+  75% {
+    transform: translateX(-50%) translateY(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) translateY(-6px) scale(0.95);
+    opacity: 0;
+  }
+}
+
 .kid-grid {
   --cols: 2;
   --rows: 2;
@@ -277,6 +324,29 @@ h2 {
   /* Presses down into its own shadow, like a physical toy button. */
   transform: translateY(4px) scale(0.97);
   box-shadow: 0 2px 0 rgba(35, 25, 65, 0.14), 0 4px 10px rgba(35, 25, 65, 0.12);
+}
+.kid-tile.is-locked-shake {
+  /* "No" feedback for a tile refused by song-lock mode — a shake reads as
+     "not that one" without needing any text on the tile itself. */
+  animation: tile-shake 0.4s ease-in-out;
+}
+@keyframes tile-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(4px);
+  }
 }
 
 .kid-tile-emoji,

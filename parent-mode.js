@@ -538,6 +538,7 @@ export function createParentMode({
     els.volumeValue.textContent = els.volumeSlider.value;
     els.sleepTimerSelect.value = draft.settings.sleepTimerMinutes ? String(draft.settings.sleepTimerMinutes) : '';
     els.hideExplicitToggle.checked = draft.settings.hideExplicit;
+    els.songLockToggle.checked = draft.settings.songLockEnabled;
   }
 
   function bindSettings() {
@@ -570,6 +571,9 @@ export function createParentMode({
       draft.settings.hideExplicit = els.hideExplicitToggle.checked;
       renderResults(lastSearchResults, els.searchResults);
       renderResults(lastPlaylistResults, els.playlistResults);
+    });
+    els.songLockToggle.addEventListener('change', () => {
+      draft.settings.songLockEnabled = els.songLockToggle.checked;
     });
     els.changePinBtn.addEventListener('click', async () => {
       const pin = await promptDialog('New 4-digit PIN:', '', { title: 'Change PIN', inputMode: 'numeric' });

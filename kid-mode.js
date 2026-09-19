@@ -3,6 +3,7 @@ import { createVisualizer } from './visualizer.js';
 const TAP_DEBOUNCE_MS = 800;
 const HOLD_MS = 2250; // 75% of the original 3000ms
 const FADE_MS = 30_000;
+const SONG_LOCK_MS = 60_000;
 const TILE_PALETTE = ['#FFADAD', '#FFD6A5', '#FDFFB6', '#CAFFBF', '#9BF6FF', '#A0C4FF', '#BDB2FF', '#FFC6FF'];
 const SPARKLES = ['✨', '⭐', '🎉'];
 // Cover mode: album art (or a manual emoji+color override), no text — for
@@ -46,6 +47,14 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
   let activeTrackUri = null;
   let holdTimer = null;
   let holdStartedAt = null;
+  // Set only while settings.songLockEnabled — the currently "locked in"
+  // song and how long it stays that way. Kept independent of
+  // activeTrackUri (which the stop button clears) so stopping and
+  // re-tapping the *same* tile still works during the lock window; only a
+  // genuinely *different* tile is refused.
+  let songLockedUntil = 0;
+  let songLockedUri = null;
+  let lockToastHideTimer = null;
   let sleepTimerHandle = null;
   let fadeIntervalHandle = null;
   let progressTickHandle = null;
@@ -193,15 +202,49 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
   function markTilePlaying(index) {
     activeTileIndex = index;
     activeTrackUri = getConfig().tiles[index] ? getConfig().tiles[index].uri : null;
+    if (getConfig().settings.songLockEnabled && activeTrackUri) {
+      songLockedUntil = Date.now() + SONG_LOCK_MS;
+      songLockedUri = activeTrackUri;
+    }
     updateActiveTileVisual();
     openNowPlaying();
     hideError();
+  }
+
+  // "Blocked songs mode": once a song is locked in, a tap on any *other*
+  // tile is refused (with feedback below) until the minute is up — but the
+  // *same* tile, the stop button, and play/pause are never refused, since
+  // none of those actually swap in a different song.
+  function showLockedFeedback(btn) {
+    if (btn) {
+      btn.classList.remove('is-locked-shake');
+      void btn.offsetWidth; // restart the animation even on back-to-back refused taps
+      btn.classList.add('is-locked-shake');
+      const clearShake = () => btn.classList.remove('is-locked-shake');
+      btn.addEventListener('animationend', clearShake, { once: true });
+      setTimeout(clearShake, 500);
+    }
+    if (!els.lockToast) return;
+    clearTimeout(lockToastHideTimer);
+    els.lockToast.hidden = false;
+    els.lockToast.classList.remove('is-visible');
+    void els.lockToast.offsetWidth;
+    els.lockToast.classList.add('is-visible');
+    lockToastHideTimer = setTimeout(() => {
+      els.lockToast.hidden = true;
+    }, 1800);
   }
 
   async function handleTap(index, btn) {
     const config = getConfig();
     const tile = config.tiles[index];
     if (!tile) return;
+
+    if (config.settings.songLockEnabled && Date.now() < songLockedUntil && tile.uri !== songLockedUri) {
+      showLockedFeedback(btn);
+      return;
+    }
+
     const now = Date.now();
     if (now - (lastTapAt.get(tile.id) || 0) < TAP_DEBOUNCE_MS) return;
     lastTapAt.set(tile.id, now);
