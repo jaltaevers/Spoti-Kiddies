@@ -291,6 +291,14 @@ h2 {
   overflow-y: auto;
 }
 
+/* While one tile is playing, fade the rest back so the active one reads as
+   the obvious answer to "which song is on" at a glance, not just via its
+   own glow/bounce competing against every other pastel tile at full
+   strength. */
+.kid-grid.has-active-tile .kid-tile:not(.is-playing) {
+  opacity: 0.5;
+}
+
 .kid-tile {
   --tile-color: #ffadad;
   position: relative;
@@ -318,7 +326,7 @@ h2 {
      of a diffuse glow or a colored ring, so resting tiles read as chunky
      flat-color buttons rather than glossy cards. */
   box-shadow: 0 6px 0 rgba(35, 25, 65, 0.14), 0 10px 18px rgba(35, 25, 65, 0.14);
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.25s ease;
 }
 .kid-tile:active {
   /* Presses down into its own shadow, like a physical toy button. */
@@ -388,21 +396,22 @@ h2 {
 
 .kid-tile-eq {
   position: absolute;
-  bottom: 12px;
-  right: 12px;
+  bottom: 10px;
+  right: 10px;
   display: none;
   gap: 4px;
   align-items: flex-end;
-  height: 24px;
-  padding: 4px 6px;
-  background: rgba(20, 15, 35, 0.35);
+  height: 28px;
+  padding: 5px 7px;
+  /* Opaque white (rather than the old translucent dark chip) so the badge
+     itself — not just the ring around the tile — reads clearly against
+     every pastel fill and every piece of album art alike. */
+  background: rgba(255, 255, 255, 0.95);
   border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 .kid-tile.is-playing {
-  animation: tile-bounce 1s ease-in-out infinite;
-  /* A bright white halo (rather than a matching-color glow) so the active
-     tile pops against every pastel fill the same way. */
-  box-shadow: 0 6px 0 rgba(35, 25, 65, 0.14), 0 12px 22px rgba(35, 25, 65, 0.22), 0 0 0 5px rgba(255, 255, 255, 0.95);
+  animation: tile-bounce 1s ease-in-out infinite, tile-pulse-glow 1.6s ease-in-out infinite;
 }
 .kid-tile.is-playing .kid-tile-eq {
   display: flex;
@@ -410,19 +419,19 @@ h2 {
 .kid-tile-eq i {
   width: 5px;
   border-radius: 3px;
-  background: rgba(255, 255, 255, 0.92);
+  background: linear-gradient(180deg, #ff6b6b, #ffd166, #06d6a0);
   animation: eq-bounce 0.9s ease-in-out infinite;
 }
 .kid-tile-eq i:nth-child(1) {
-  height: 8px;
+  height: 9px;
   animation-delay: 0s;
 }
 .kid-tile-eq i:nth-child(2) {
-  height: 18px;
+  height: 20px;
   animation-delay: 0.2s;
 }
 .kid-tile-eq i:nth-child(3) {
-  height: 12px;
+  height: 14px;
   animation-delay: 0.4s;
 }
 
@@ -433,6 +442,18 @@ h2 {
   }
   50% {
     transform: scale(1.035) translateY(-4px);
+  }
+}
+/* A bright white ring plus a warm pulsing glow (rather than a static,
+   matching-color halo) so the active tile pops against every pastel fill
+   the same way, and draws the eye rather than sitting there quietly. */
+@keyframes tile-pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 6px 0 rgba(35, 25, 65, 0.14), 0 12px 22px rgba(35, 25, 65, 0.22), 0 0 0 6px rgba(255, 255, 255, 0.95), 0 0 16px 2px rgba(255, 209, 102, 0.5);
+  }
+  50% {
+    box-shadow: 0 6px 0 rgba(35, 25, 65, 0.14), 0 12px 22px rgba(35, 25, 65, 0.22), 0 0 0 6px rgba(255, 255, 255, 0.95), 0 0 28px 6px rgba(255, 209, 102, 0.85);
   }
 }
 @keyframes eq-bounce {
@@ -561,6 +582,21 @@ h2 {
     transform: translateY(0);
     opacity: 1;
   }
+}
+.np-title {
+  /* The bar previously showed only a thumbnail with no text anywhere —
+     fine for a kid recognizing songs by picture, but gives a parent (or a
+     simple-mode reader) no way to confirm which song is on without
+     opening parent mode. */
+  font-family: 'Baloo 2', ui-rounded, 'Segoe UI', sans-serif;
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: #3d3358;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 4px;
 }
 .np-row {
   display: flex;

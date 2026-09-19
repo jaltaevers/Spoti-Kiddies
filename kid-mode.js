@@ -176,6 +176,7 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
     Array.from(els.grid.children).forEach((btn, i) => {
       btn.classList.toggle('is-playing', i === activeTileIndex);
     });
+    els.grid.classList.toggle('has-active-tile', activeTileIndex !== -1);
   }
 
   // Only for a deliberate "I'm done" moment (the stop button, the sleep
@@ -350,6 +351,7 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
   function renderNowPlayingArt() {
     const config = getConfig();
     const tile = config.tiles[activeTileIndex];
+    if (els.npTitle) els.npTitle.textContent = tile ? tile.title || '' : '';
     els.npArt.innerHTML = '';
     els.npArt.style.background = '';
     els.npArt.style.backgroundImage = '';
@@ -476,7 +478,15 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
     // signal that the current track actually changed. Without this, the
     // now-playing art (and the grid's is-playing highlight) stayed frozen
     // on whichever tile was originally tapped instead of following along.
-    if (track && track.uri) {
+    //
+    // Gated on an actively-*playing* report on purpose: pausing (including
+    // the stop button's own player.pause() call, just below) still reports
+    // the just-paused track in track_window — often only after a real
+    // async round-trip to the Spotify Connect device, arriving well after
+    // the stop button has already cleared activeTileIndex — and reacting
+    // to that stale report here would silently undo an explicit stop and
+    // re-highlight a tile the kid just turned off.
+    if (!state.paused && track && track.uri) {
       const config = getConfig();
       const newIndex = config.tiles.findIndex((t) => t.uri === track.uri);
       if (newIndex !== -1 && newIndex !== activeTileIndex) {
