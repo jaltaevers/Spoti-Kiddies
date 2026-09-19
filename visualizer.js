@@ -1,8 +1,12 @@
-// A classic Winamp-style spectrum analyzer, drawn on a <canvas>. Two visual
-// variants share the same signal-generation engine below: 'bar-strip' (the
-// chunky LED-segment bars on the now-playing overlay) and 'ambient-backdrop'
-// (a soft, blurred glow behind the kid-mode tile grid, low-opacity enough
-// that tiles on top stay perfectly legible).
+// A classic Winamp-style spectrum analyzer, drawn on a <canvas>. Three
+// visual variants share the same signal-generation engine below:
+// 'bar-strip' (the chunky LED-segment bars on the now-playing overlay),
+// 'ambient-backdrop' (a soft, blurred glow behind the kid-mode tile grid,
+// low-opacity enough that tiles on top stay perfectly legible), and
+// 'winamp-backdrop' (the same background placement but turned up: bolder,
+// far less blurred, much more opaque — a kid or parent can switch to it by
+// tapping the visualizer toggle a second time, cycling off → subtle →
+// winamp, the same click-to-cycle-visualization feel the real thing had).
 //
 // This does NOT analyze real audio: the Spotify Web Playback SDK plays
 // through its own DRM-gated pipeline with no accessible <audio> element or
@@ -51,12 +55,36 @@ const VARIANTS = {
     peakCapHeight: 0, // no peak caps — too fine a detail once blurred
     blurPx: 36,
   },
+  // Same placement as ambient-backdrop (behind the grid, z-index unchanged)
+  // but turned up rather than washed out: more, narrower bars, nearly
+  // opaque, and only lightly blurred — reads as an actual visualizer
+  // filling the screen instead of a mood-lighting glow. Tiles stay tappable
+  // regardless of intensity since they sit on their own opaque layer above
+  // this one; it's only ever visible in the gaps and empty space around them.
+  'winamp-backdrop': {
+    minBars: 14,
+    maxBars: 28,
+    pxPerBar: 46,
+    barFillRatio: 1.1,
+    heightRatio: 0.98,
+    gradientStops: [
+      [0, 'rgba(0, 230, 118, 0.88)'],
+      [0.55, 'rgba(255, 234, 0, 0.8)'],
+      [0.8, 'rgba(255, 145, 0, 0.75)'],
+      [1, 'rgba(255, 23, 68, 0.7)'],
+    ],
+    segmentStride: 0,
+    segmentHeight: 0,
+    peakCapHeight: 0,
+    blurPx: 10,
+  },
 };
 
 const PEAK_FALL_PER_SEC = 0.7; // fraction of full height per second
 
 export function createVisualizer({ canvas, variant = 'bar-strip' }) {
-  const cfg = VARIANTS[variant];
+  let currentVariant = variant;
+  let cfg = VARIANTS[currentVariant];
   const ctx = canvas.getContext('2d');
 
   let cssWidth = 0;
@@ -190,6 +218,16 @@ export function createVisualizer({ canvas, variant = 'bar-strip' }) {
     // so bar spacing keeps matching the actual layout. Cheap no-op if the
     // panel is currently hidden (display:none reads back a 0×0 rect).
     handleResize() {
+      if (rafHandle) resizeToDisplaySize();
+    },
+    // Switches which VARIANTS entry this instance draws with (e.g. the
+    // background canvas cycling 'ambient-backdrop' -> 'winamp-backdrop').
+    // Rebuilds bars/gradient immediately if currently running, since each
+    // variant has its own bar count/sizing — same as a resize does.
+    setVariant(newVariant) {
+      if (!VARIANTS[newVariant] || newVariant === currentVariant) return;
+      currentVariant = newVariant;
+      cfg = VARIANTS[currentVariant];
       if (rafHandle) resizeToDisplaySize();
     },
     setPlaying(isPlaying) {
