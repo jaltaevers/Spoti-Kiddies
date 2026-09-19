@@ -280,12 +280,19 @@ h2 {
      justify/align-content) rather than between tiles. The 64px floor still
      keeps tiles tappable if the count grows large enough to shrink them;
      past that floor the grid overflows its own scroll area rather than
-     shrinking tiles below tap size. Rows get a taller cap than columns —
-     each card is now a circle plus its name below, not a single square
-     filling the whole cell, so a row needs more height than its column
-     has width, or the name would get squeezed. */
+     shrinking tiles below tap size.
+
+     Rows are `auto` (content-sized), not a matching minmax(), on purpose:
+     each card's circle is sized off its own *width* (the column track),
+     so a fixed row-height guess could resolve shorter than that width on
+     a narrow phone with few columns — especially once the now-playing
+     bar's bottom padding eats into the available height — and a circle
+     squeezed shorter than it is wide renders as an oval. Auto rows instead
+     grow to fit whatever the (always-square) card actually needs, so the
+     circle is never distorted; if that doesn't fit the viewport, the grid
+     scrolls (overflow-y below) rather than warping a tile's shape. */
   grid-template-columns: repeat(var(--cols), minmax(64px, 190px));
-  grid-template-rows: repeat(var(--rows), minmax(88px, 236px));
+  grid-template-rows: repeat(var(--rows), auto);
   justify-content: center;
   align-content: center;
   gap: 18px;
@@ -331,11 +338,14 @@ h2 {
 
 /* The round part of the card — a solid short "bottom edge" instead of a
    diffuse glow or a colored ring, so it still reads as a chunky flat-color
-   toy puck rather than a glossy photo. Sized off its own width, not
-   height, so it stays a perfect circle no matter how tall its grid row is. */
+   toy puck rather than a glossy photo. Sized off its own width (the grid
+   row is `auto` precisely so it always has room to match); flex-shrink:0
+   is a second line of defense so nothing can squeeze it shorter than that
+   width and turn the circle into an oval. */
 .kid-tile-art {
   position: relative;
   overflow: hidden;
+  flex-shrink: 0;
   width: 100%;
   aspect-ratio: 1 / 1;
   max-width: 190px;
