@@ -15,6 +15,7 @@ export const DEFAULT_KID_SETTINGS = {
   hideExplicit: true,
   tileDisplay: 'cover', // 'cover' (album art) | 'simple' (emoji + song name)
   visualizerMode: 'subtle', // 'off' | 'subtle' | 'winamp' — Winamp-style bars, cycled from one toggle button
+  songLockEnabled: false, // once a song starts, refuses a tap on a different tile for a minute (kid-mode.js)
 };
 
 function readJson(key) {
@@ -91,6 +92,7 @@ function migrateLegacyStore(stored) {
       hideExplicit: legacySettings.hideExplicit != null ? legacySettings.hideExplicit : true,
       tileDisplay: legacySettings.tileDisplay || DEFAULT_KID_SETTINGS.tileDisplay,
       visualizerMode: legacySettings.visualizerMode || (legacySettings.showVisualizer === false ? 'off' : DEFAULT_KID_SETTINGS.visualizerMode),
+      songLockEnabled: legacySettings.songLockEnabled != null ? legacySettings.songLockEnabled : DEFAULT_KID_SETTINGS.songLockEnabled,
     },
   };
   return { kids: [kid], activeKidId: kid.id, pinHash: legacySettings.pinHash || null, familySeeded: false };

@@ -74,6 +74,7 @@
         <canvas id="kid-bg-visualizer" class="kid-bg-visualizer" aria-hidden="true" hidden></canvas>
 
         <div id="kid-greeting" class="kid-greeting" hidden></div>
+        <div id="kid-lock-toast" class="kid-lock-toast" hidden>🎵 Let’s finish this song first!</div>
 
         <div id="kid-grid" class="kid-grid"></div>
 
@@ -236,6 +237,10 @@
           <label class="settings-field settings-checkbox">
             <input id="hide-explicit-toggle" type="checkbox" />
             Hide explicit tracks
+          </label>
+          <label class="settings-field settings-checkbox">
+            <input id="song-lock-toggle" type="checkbox" />
+            Lock each song for 1 minute (no skipping to another tile right away)
           </label>
           <button id="change-pin-btn" class="small-btn">Change PIN</button>
         </section>
