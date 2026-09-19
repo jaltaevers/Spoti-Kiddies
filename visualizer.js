@@ -1,12 +1,15 @@
-// A classic Winamp-style spectrum analyzer, drawn on a <canvas>. Three
+// A classic Winamp-style spectrum analyzer, drawn on a <canvas>. Four
 // visual variants share the same signal-generation engine below:
-// 'bar-strip' (the chunky LED-segment bars on the now-playing overlay),
-// 'ambient-backdrop' (a soft, blurred glow behind the kid-mode tile grid,
-// low-opacity enough that tiles on top stay perfectly legible), and
-// 'winamp-backdrop' (the same background placement but turned up: bolder,
-// far less blurred, much more opaque — a kid or parent can switch to it by
-// tapping the visualizer toggle a second time, cycling off → subtle →
-// winamp, the same click-to-cycle-visualization feel the real thing had).
+// 'bar-strip' and 'ambient-backdrop' are the calm/subtle looks (the
+// chunky LED-segment bars on the now-playing overlay, and a soft blurred
+// glow behind the kid-mode tile grid, low-opacity enough that tiles on
+// top stay perfectly legible); 'bar-strip-winamp' and 'winamp-backdrop'
+// are their turned-up counterparts — bolder, faster-moving, color-cycling,
+// mirrored, and throwing off sparkles on the loud peaks, the way classic
+// Winamp/AVS presets never just sat still. A kid or parent can switch
+// between them by tapping the visualizer toggle a second time, cycling
+// off -> subtle -> winamp, the same click-to-cycle-visualization feel the
+// real thing had.
 //
 // This does NOT analyze real audio: the Spotify Web Playback SDK plays
 // through its own DRM-gated pipeline with no accessible <audio> element or
@@ -37,6 +40,32 @@ const VARIANTS = {
     segmentHeight: 1.5,
     peakCapHeight: 2,
     blurPx: 0,
+  },
+  // Same strip, same placement — but this is the one a kid actually taps
+  // into on the second cycle, and it used to look *identical* to 'bar-strip'
+  // regardless of mode, which made "winamp mode" nearly invisible on the
+  // one surface that's on screen the whole time a song plays. Now it gets
+  // its own turned-up treatment: fewer, chunkier bars, hue constantly
+  // cycling, mirrored out from the center, and sparkles off the loud peaks.
+  'bar-strip-winamp': {
+    minBars: 10,
+    maxBars: 26,
+    pxPerBar: 20,
+    barFillRatio: 0.8,
+    heightRatio: 1,
+    gradientStops: [
+      [0, '#00e676'],
+      [0.55, '#ffea00'],
+      [0.8, '#ff9100'],
+      [1, '#ff1744'],
+    ],
+    segmentStride: 5,
+    segmentHeight: 1.5,
+    peakCapHeight: 3,
+    blurPx: 0,
+    colorCycle: true,
+    mirror: true,
+    sparkles: true,
   },
   'ambient-backdrop': {
     minBars: 8,
@@ -77,10 +106,15 @@ const VARIANTS = {
     segmentHeight: 0,
     peakCapHeight: 0,
     blurPx: 10,
+    colorCycle: true,
+    mirror: true,
+    sparkles: true,
   },
 };
 
 const PEAK_FALL_PER_SEC = 0.7; // fraction of full height per second
+const HUE_CYCLE_DEG_PER_SEC = 30; // ~12s for a full color rotation — lively, not seizure-fast
+const SPARKLE_LIFE_SEC = 0.7;
 
 export function createVisualizer({ canvas, variant = 'bar-strip' }) {
   let currentVariant = variant;
@@ -91,6 +125,7 @@ export function createVisualizer({ canvas, variant = 'bar-strip' }) {
   let cssHeight = 0;
   let bars = [];
   let gradient = null;
+  let particles = [];
   let playing = false;
   let envelope = 0;
   let energyPhase = Math.random() * Math.PI * 2;
@@ -109,6 +144,24 @@ export function createVisualizer({ canvas, variant = 'bar-strip' }) {
     };
   }
 
+  // How many bars fit is still driven by pxPerBar against the real width,
+  // but a mirrored variant only ever generates half that many *distinct*
+  // signals — the other half of the screen just mirrors them — so the
+  // visual density matches non-mirrored variants instead of doubling it.
+  function slotCount() {
+    const total = Math.max(cfg.minBars, Math.min(cfg.maxBars, Math.round(cssWidth / cfg.pxPerBar)));
+    return cfg.mirror ? Math.max(2, Math.round(total / 2)) * 2 : total;
+  }
+
+  // Resolves bar index i (0-based within `bars`, the generated-signal half)
+  // to the x position(s) it actually draws at: one for a normal layout,
+  // two — mirrored left/right from center — for cfg.mirror.
+  function slotX(i, stride, barWidth, totalSlots) {
+    if (!cfg.mirror) return [i * stride + (stride - barWidth) / 2];
+    const half = totalSlots / 2;
+    return [(half + i) * stride + (stride - barWidth) / 2, (half - 1 - i) * stride + (stride - barWidth) / 2];
+  }
+
   // Reads the canvas's actual on-screen size so bar count/spacing scales
   // with it (a phone-width overlay and a tablet-width one shouldn't render
   // the same fixed bar count) and so drawing can happen in crisp css-pixel
@@ -125,8 +178,10 @@ export function createVisualizer({ canvas, variant = 'bar-strip' }) {
     canvas.height = Math.round(cssHeight * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const barCount = Math.max(cfg.minBars, Math.min(cfg.maxBars, Math.round(cssWidth / cfg.pxPerBar)));
+    const totalSlots = slotCount();
+    const barCount = cfg.mirror ? totalSlots / 2 : totalSlots;
     bars = Array.from({ length: barCount }, makeBar);
+    particles = [];
 
     const drawHeight = cssHeight * cfg.heightRatio;
     gradient = ctx.createLinearGradient(0, cssHeight, 0, cssHeight - drawHeight);
@@ -148,6 +203,15 @@ export function createVisualizer({ canvas, variant = 'bar-strip' }) {
       bar.value += (target - bar.value) * Math.min(1, dt * 9);
       bar.peak = bar.value > bar.peak ? bar.value : Math.max(bar.value, bar.peak - dt * PEAK_FALL_PER_SEC);
     }
+
+    if (particles.length) {
+      for (const p of particles) {
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= dt / SPARKLE_LIFE_SEC;
+      }
+      particles = particles.filter((p) => p.life > 0);
+    }
   }
 
   function draw() {
@@ -155,17 +219,39 @@ export function createVisualizer({ canvas, variant = 'bar-strip' }) {
     if (!bars.length) return;
 
     const drawHeight = cssHeight * cfg.heightRatio;
-    const stride = cssWidth / bars.length;
+    const totalSlots = cfg.mirror ? bars.length * 2 : bars.length;
+    const stride = cssWidth / totalSlots;
     const barWidth = Math.max(1, stride * cfg.barFillRatio);
 
     ctx.save();
-    if (cfg.blurPx) ctx.filter = `blur(${cfg.blurPx}px)`;
+    const filters = [];
+    if (cfg.blurPx) filters.push(`blur(${cfg.blurPx}px)`);
+    // Constantly rotating the whole fill's hue — rather than redefining the
+    // gradient's colors every frame — is what real AVS/MilkDrop presets do
+    // to feel alive even when the "music" itself is steady: the shapes
+    // barely change, but the palette never sits still.
+    if (cfg.colorCycle) filters.push(`hue-rotate(${(t * HUE_CYCLE_DEG_PER_SEC) % 360}deg)`);
+    if (filters.length) ctx.filter = filters.join(' ');
     ctx.fillStyle = gradient;
     bars.forEach((bar, i) => {
       const h = bar.value * drawHeight;
       if (h <= 0) return;
-      const x = i * stride + (stride - barWidth) / 2;
-      ctx.fillRect(x, cssHeight - h, barWidth, h);
+      for (const x of slotX(i, stride, barWidth, totalSlots)) {
+        ctx.fillRect(x, cssHeight - h, barWidth, h);
+        // Sparks off a bar right as it's near its own peak — sparse enough
+        // (checked once per bar per frame) to read as occasional glints,
+        // not a constant snowstorm.
+        if (cfg.sparkles && bar.value > 0.82 && Math.random() < 0.05) {
+          particles.push({
+            x: x + barWidth / 2,
+            y: cssHeight - h,
+            vx: (Math.random() - 0.5) * 50,
+            vy: -60 - Math.random() * 70,
+            life: 1,
+            size: 1.5 + Math.random() * 2,
+          });
+        }
+      }
     });
     ctx.restore();
 
@@ -186,10 +272,23 @@ export function createVisualizer({ canvas, variant = 'bar-strip' }) {
       ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
       bars.forEach((bar, i) => {
         if (bar.peak <= 0) return;
-        const x = i * stride + (stride - barWidth) / 2;
         const peakY = Math.max(0, cssHeight - bar.peak * drawHeight - cfg.peakCapHeight);
-        ctx.fillRect(x, peakY, barWidth, cfg.peakCapHeight);
+        for (const x of slotX(i, stride, barWidth, totalSlots)) {
+          ctx.fillRect(x, peakY, barWidth, cfg.peakCapHeight);
+        }
       });
+    }
+
+    if (particles.length) {
+      ctx.save();
+      ctx.fillStyle = '#ffffff';
+      for (const p of particles) {
+        ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
     }
   }
 
@@ -228,6 +327,7 @@ export function createVisualizer({ canvas, variant = 'bar-strip' }) {
       if (!VARIANTS[newVariant] || newVariant === currentVariant) return;
       currentVariant = newVariant;
       cfg = VARIANTS[currentVariant];
+      particles = [];
       if (rafHandle) resizeToDisplaySize();
     },
     setPlaying(isPlaying) {
