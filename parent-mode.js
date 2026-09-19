@@ -1,4 +1,4 @@
-import { tileFromTrack, validateImportedConfig, encodeShareLink, hashPin } from './store.js';
+import { tileFromTrack, validateImportedConfig, encodeShareLink, hashPin, extractEmoji, MAX_OVERRIDE_EMOJI } from './store.js';
 import { getLoginAgeInfo, loadTokens } from './auth.js';
 import { confirmDialog, alertDialog, promptDialog } from './dialog.js';
 
@@ -254,15 +254,26 @@ export function createParentMode({
 
   async function openOverrideEditor(index) {
     const tile = draft.tiles[index];
-    const emoji = await promptDialog('Emoji for this tile (leave blank to use album art instead):', tile.override ? tile.override.emoji : '', { title: 'Tile emoji' });
+    const emoji = await promptDialog(`Emoji for this tile — up to ${MAX_OVERRIDE_EMOJI} (leave blank to use album art instead):`, tile.override ? tile.override.emoji : '', { title: 'Tile emoji' });
     if (emoji === null) return;
     if (emoji.trim() === '') {
       tile.override = null;
-    } else {
-      const color = tile.override ? tile.override.color : EMOJI_COLOR_DEFAULT;
-      tile.override = { emoji: emoji.trim().slice(0, 4), color };
-      openColorEditor(index);
+      renderTileList();
+      return;
     }
+    // Only real emoji are accepted (typed text is rejected outright rather
+    // than saved as a broken-looking cover), and only up to
+    // MAX_OVERRIDE_EMOJI of them — enough are silently dropped past that
+    // to fit a pasted string too, without a confusing rejection for
+    // something that mostly worked.
+    const picked = extractEmoji(emoji);
+    if (picked.length === 0) {
+      await alertDialog(`That doesn't look like emoji — pick one or two from your device's emoji keyboard (up to ${MAX_OVERRIDE_EMOJI}), or leave it blank to use album art instead.`);
+      return;
+    }
+    const color = tile.override ? tile.override.color : EMOJI_COLOR_DEFAULT;
+    tile.override = { emoji: picked.join(''), color };
+    openColorEditor(index);
     renderTileList();
   }
 

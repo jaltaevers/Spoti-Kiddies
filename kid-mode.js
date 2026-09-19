@@ -1,4 +1,5 @@
 import { createVisualizer } from './visualizer.js';
+import { extractEmoji } from './store.js';
 
 const TAP_DEBOUNCE_MS = 800;
 const HOLD_MS = 2250; // 75% of the original 3000ms
@@ -27,6 +28,24 @@ function computeLayout(count) {
 
 function isPortrait() {
   return window.matchMedia('(orientation: portrait)').matches;
+}
+
+// Renders 1 or 2 emoji glyphs (an override can hold up to
+// MAX_OVERRIDE_EMOJI) as their own spans inside a shared wrapper, so CSS
+// can center either count and shrink a pair to fit side by side — see
+// .kid-tile-emoji-group(--pair) in style.css. Shared between the grid
+// tiles and the smaller now-playing art, which pass their own glyphClass
+// so each can size itself independently.
+function appendEmojiGroup(container, glyphs, glyphClass) {
+  const group = document.createElement('span');
+  group.className = 'kid-tile-emoji-group' + (glyphs.length > 1 ? ' kid-tile-emoji-group--pair' : '');
+  glyphs.forEach((glyph) => {
+    const span = document.createElement('span');
+    span.className = glyphClass;
+    span.textContent = glyph;
+    group.appendChild(span);
+  });
+  container.appendChild(group);
 }
 
 export function createKidMode({ els, player, getConfig, onOpenParentGate, onToggleVisualizer }) {
@@ -61,32 +80,39 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
   let lastState = { position: 0, durationMs: 0, updatedAt: 0, paused: true };
 
   function paintTileVisual(btn, tile, index, displayMode) {
-    btn.style.background = '';
-    btn.style.backgroundImage = '';
     btn.innerHTML = '';
+    const art = document.createElement('span');
+    art.className = 'kid-tile-art';
     if (tile.override) {
-      btn.style.background = tile.override.color;
-      const span = document.createElement('span');
-      span.className = 'kid-tile-emoji';
-      span.textContent = tile.override.emoji;
-      btn.appendChild(span);
+      art.style.background = tile.override.color;
+      // Re-extracted rather than trusted as-is: a tile saved before emoji
+      // validation existed, or imported/shared from elsewhere, isn't
+      // guaranteed to hold 1-2 clean emoji. Falling back to the plain
+      // music-note keeps the parent's chosen color while never rendering
+      // broken-looking text on the tile.
+      const glyphs = extractEmoji(tile.override.emoji);
+      if (glyphs.length) {
+        appendEmojiGroup(art, glyphs, 'kid-tile-emoji');
+      } else {
+        appendEmojiGroup(art, ['🎵'], 'kid-tile-emoji kid-tile-emoji-fallback');
+      }
     } else if (displayMode === 'simple') {
-      const span = document.createElement('span');
-      span.className = 'kid-tile-emoji';
-      span.textContent = SIMPLE_MODE_EMOJI[index % SIMPLE_MODE_EMOJI.length];
-      btn.appendChild(span);
+      appendEmojiGroup(art, [SIMPLE_MODE_EMOJI[index % SIMPLE_MODE_EMOJI.length]], 'kid-tile-emoji');
     } else if (tile.albumArtUrl) {
-      btn.style.backgroundImage = `url("${tile.albumArtUrl}")`;
+      art.style.backgroundImage = `url("${tile.albumArtUrl}")`;
     } else {
       // A track with no art and no manual override used to leave the tile
-      // completely blank — just a flat color square with no clue what it
+      // completely blank — just a flat color circle with no clue what it
       // is. A plain music-note reads as "this is a song" instead of "this
       // button is broken."
-      const span = document.createElement('span');
-      span.className = 'kid-tile-emoji kid-tile-emoji-fallback';
-      span.textContent = '🎵';
-      btn.appendChild(span);
+      appendEmojiGroup(art, ['🎵'], 'kid-tile-emoji kid-tile-emoji-fallback');
     }
+
+    const eq = document.createElement('span');
+    eq.className = 'kid-tile-eq';
+    eq.innerHTML = '<i></i><i></i><i></i>';
+    art.appendChild(eq);
+    btn.appendChild(art);
 
     if (displayMode === 'simple') {
       const label = document.createElement('span');
@@ -94,11 +120,6 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
       label.textContent = tile.title || '';
       btn.appendChild(label);
     }
-
-    const eq = document.createElement('span');
-    eq.className = 'kid-tile-eq';
-    eq.innerHTML = '<i></i><i></i><i></i>';
-    btn.appendChild(eq);
   }
 
   function renderGrid() {
@@ -150,7 +171,10 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
 
   function spawnSparkles(originBtn) {
     if (!els.sparkleLayer || !originBtn) return;
-    const rect = originBtn.getBoundingClientRect();
+    // Bursts from the round art itself, not the taller card (art + name)
+    // originBtn now is — otherwise the burst centers on the gap between
+    // the two instead of on the circle a kid just tapped.
+    const rect = (originBtn.querySelector('.kid-tile-art') || originBtn).getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
     for (let i = 0; i < 6; i++) {
@@ -378,17 +402,16 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
     if (!tile) return;
     if (tile.override) {
       els.npArt.style.background = tile.override.color;
-      const span = document.createElement('span');
-      span.className = 'kid-tile-emoji np-emoji';
-      span.textContent = tile.override.emoji;
-      els.npArt.appendChild(span);
+      const glyphs = extractEmoji(tile.override.emoji);
+      if (glyphs.length) {
+        appendEmojiGroup(els.npArt, glyphs, 'kid-tile-emoji np-emoji');
+      } else {
+        appendEmojiGroup(els.npArt, ['🎵'], 'kid-tile-emoji np-emoji kid-tile-emoji-fallback');
+      }
     } else if (tile.albumArtUrl) {
       els.npArt.style.backgroundImage = `url("${tile.albumArtUrl}")`;
     } else {
-      const span = document.createElement('span');
-      span.className = 'kid-tile-emoji-fallback np-emoji';
-      span.textContent = '🎵';
-      els.npArt.appendChild(span);
+      appendEmojiGroup(els.npArt, ['🎵'], 'kid-tile-emoji np-emoji kid-tile-emoji-fallback');
     }
   }
 

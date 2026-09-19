@@ -46,6 +46,31 @@ export function makeTileId() {
   return 't_' + Math.random().toString(36).slice(2, 10);
 }
 
+// A tile's cover can be overridden with custom emoji instead of album art.
+// Capped at 2 so it always fits legibly on a round tile (see kid-mode.js's
+// .kid-tile-emoji-group--pair sizing) — matched here so extractEmoji()
+// keeps the same first two a parent typed rather than a caller picking
+// its own, different cutoff.
+export const MAX_OVERRIDE_EMOJI = 2;
+
+// Matches actual emoji glyphs — Extended_Pictographic covers virtually
+// every standalone emoji, Regional_Indicator covers flag pairs (which
+// aren't pictographic on their own) — while rejecting plain typed text.
+const EMOJI_GLYPH_RE = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
+
+// Splits on user-perceived characters (via Intl.Segmenter), not UTF-16
+// code units or code points, so a skin-tone modifier or a ZWJ sequence
+// like a family emoji still counts — correctly — as one. Used both to
+// validate what a parent just typed and, defensively, to re-derive
+// something safe to render from tiles saved before this existed, or
+// imported/shared from elsewhere with no guarantee they're clean.
+export function extractEmoji(input, max = MAX_OVERRIDE_EMOJI) {
+  if (!input) return [];
+  const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+  const clusters = Array.from(segmenter.segment(input), (s) => s.segment);
+  return clusters.filter((c) => EMOJI_GLYPH_RE.test(c)).slice(0, max);
+}
+
 function makeKid(name) {
   return {
     id: makeKidId(),
