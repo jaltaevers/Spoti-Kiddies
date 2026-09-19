@@ -298,12 +298,16 @@ h2 {
   gap: 18px;
   height: 100%;
   padding: 20px;
-  /* Extra bottom clearance while the now-playing bar floats over the grid,
-     set by kid-mode.js's updateGridClearance() to that bar's own current
-     height — otherwise its last row of tiles has no way to scroll clear
-     of the bar (see .now-playing-overlay, which floats rather than
-     participating in this layout at all). Defaults to 0 so this is a
-     no-op whenever nothing is playing. */
+  /* Extra top/bottom clearance for the two floating overlays that sit on
+     top of the grid without reserving any layout space of their own
+     (both position:absolute) — the "<Name>'s Music" greeting pill and the
+     now-playing bar. Set by kid-mode.js's updateGreetingClearance() and
+     updateGridClearance() to each one's own current size; without this,
+     a short tile count can center the grid's rows enough that the top
+     row renders straight under the greeting pill, and the bottom row has
+     no way to scroll clear of the now-playing bar. Both default to 0, a
+     no-op, whenever their overlay is hidden. */
+  padding-top: calc(20px + var(--greeting-clearance, 0px));
   padding-bottom: calc(20px + var(--overlay-clearance, 0px));
   overflow-y: auto;
 }

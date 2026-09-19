@@ -167,6 +167,23 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
     const name = getConfig().settings.kidName && getConfig().settings.kidName.trim();
     els.greeting.hidden = !name;
     if (name) els.greeting.textContent = `🎵 ${name}’s Music`;
+    updateGreetingClearance();
+  }
+
+  // The "<Name>'s Music" pill floats *over* the grid the same way the
+  // now-playing bar does (position:absolute, so it reserves no layout
+  // space of its own) — without this, a short tile count centers the grid
+  // vertically enough that its top row can render straight underneath the
+  // pill instead of below it. Padding the grid by exactly the pill's own
+  // rendered height keeps the top row clear of it, the same way
+  // updateGridClearance() already does for the bottom bar.
+  function updateGreetingClearance() {
+    if (!els.greeting || els.greeting.hidden) {
+      els.grid.style.removeProperty('--greeting-clearance');
+      return;
+    }
+    const rect = els.greeting.getBoundingClientRect();
+    els.grid.style.setProperty('--greeting-clearance', `${Math.max(0, rect.bottom) + 12}px`);
   }
 
   function spawnSparkles(originBtn) {
