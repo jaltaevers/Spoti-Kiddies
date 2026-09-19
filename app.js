@@ -148,6 +148,7 @@ const parentMode = createParentMode({
     playlistPanel: document.getElementById('playlist-panel'),
     tileDisplayRadios: Array.from(document.querySelectorAll('input[name="tile-display"]')),
     endOfSongRadios: Array.from(document.querySelectorAll('input[name="end-of-song"]')),
+    visualizerModeRadios: Array.from(document.querySelectorAll('input[name="visualizer-mode"]')),
     volumeSlider: document.getElementById('volume-slider'),
     sleepTimerSelect: document.getElementById('sleep-timer-select'),
     hideExplicitToggle: document.getElementById('hide-explicit-toggle'),

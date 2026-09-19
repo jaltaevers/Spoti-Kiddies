@@ -531,6 +531,9 @@ export function createParentMode({
     els.endOfSongRadios.forEach((r) => {
       r.checked = r.value === draft.settings.endOfSong;
     });
+    els.visualizerModeRadios.forEach((r) => {
+      r.checked = r.value === draft.settings.visualizerMode;
+    });
     els.volumeSlider.value = String(Math.round(draft.settings.maxVolume * 100));
     els.volumeValue.textContent = els.volumeSlider.value;
     els.sleepTimerSelect.value = draft.settings.sleepTimerMinutes ? String(draft.settings.sleepTimerMinutes) : '';
@@ -549,6 +552,11 @@ export function createParentMode({
     els.endOfSongRadios.forEach((r) => {
       r.addEventListener('change', () => {
         if (r.checked) draft.settings.endOfSong = r.value;
+      });
+    });
+    els.visualizerModeRadios.forEach((r) => {
+      r.addEventListener('change', () => {
+        if (r.checked) draft.settings.visualizerMode = r.value;
       });
     });
     els.volumeSlider.addEventListener('input', () => {
