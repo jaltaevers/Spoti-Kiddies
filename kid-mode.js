@@ -311,6 +311,7 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
 
     // Now-playing strip: only makes sense while that overlay is open.
     if (enabled && !els.overlay.hidden) {
+      visualizer.setVariant(mode === 'winamp' ? 'bar-strip-winamp' : 'bar-strip');
       els.visualizerCanvas.hidden = false;
       visualizer.start();
     } else {
