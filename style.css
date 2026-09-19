@@ -288,6 +288,13 @@ h2 {
   gap: 18px;
   height: 100%;
   padding: 20px;
+  /* Extra bottom clearance while the now-playing bar floats over the grid,
+     set by kid-mode.js's updateGridClearance() to that bar's own current
+     height — otherwise its last row of tiles has no way to scroll clear
+     of the bar (see .now-playing-overlay, which floats rather than
+     participating in this layout at all). Defaults to 0 so this is a
+     no-op whenever nothing is playing. */
+  padding-bottom: calc(20px + var(--overlay-clearance, 0px));
   overflow-y: auto;
 }
 

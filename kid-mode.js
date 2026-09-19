@@ -331,6 +331,24 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
       els.bgVisualizerCanvas.hidden = true;
       bgVisualizer.stop();
     }
+    updateGridClearance();
+  }
+
+  // The now-playing bar floats *over* the grid rather than taking up
+  // layout space of its own (so it can float above the safe area instead
+  // of shoving the whole grid up), which otherwise left its bottom row of
+  // tiles permanently covered with no way to scroll them clear. Padding
+  // the grid's own scrollable area by exactly the bar's rendered height
+  // (which changes with the visualizer strip showing/hiding) means the
+  // last row can always be scrolled up above it.
+  function updateGridClearance() {
+    if (els.overlay.hidden) {
+      els.grid.style.removeProperty('--overlay-clearance');
+      return;
+    }
+    const rect = els.overlay.getBoundingClientRect();
+    const clearance = Math.max(0, window.innerHeight - rect.top) + 16;
+    els.grid.style.setProperty('--overlay-clearance', `${clearance}px`);
   }
 
   function openNowPlaying() {
@@ -346,6 +364,7 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
     stopProgressTicker();
     els.visualizerCanvas.hidden = true;
     visualizer.stop();
+    updateGridClearance();
   }
 
   function renderNowPlayingArt() {
@@ -550,6 +569,7 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
       renderGrid();
       visualizer.handleResize();
       bgVisualizer.handleResize();
+      updateGridClearance();
     }, 150);
   });
 
