@@ -14,7 +14,7 @@ export const DEFAULT_KID_SETTINGS = {
   sleepTimerMinutes: null, // null | 15 | 30 | 45 | 60
   hideExplicit: true,
   tileDisplay: 'cover', // 'cover' (album art) | 'simple' (emoji + song name)
-  showVisualizer: true, // Winamp-style bars on the now-playing overlay
+  visualizerMode: 'subtle', // 'off' | 'subtle' | 'winamp' — Winamp-style bars, cycled from one toggle button
 };
 
 function readJson(key) {
@@ -55,11 +55,21 @@ function makeKid(name) {
 }
 
 function normalizeKid(k) {
+  const saved = (k && k.settings) || {};
+  const settings = { ...DEFAULT_KID_SETTINGS, ...saved };
+  // Pre-winamp-mode saves only ever had a boolean showVisualizer; carry an
+  // explicit off through as 'off' instead of silently losing it to the new
+  // 'subtle' default. Checked against `saved` (pre-spread), since after the
+  // spread above settings.visualizerMode is never undefined.
+  if (saved.visualizerMode === undefined && saved.showVisualizer !== undefined) {
+    settings.visualizerMode = saved.showVisualizer ? 'subtle' : 'off';
+  }
+  delete settings.showVisualizer;
   return {
     id: (k && k.id) || makeKidId(),
     tiles: Array.isArray(k && k.tiles) ? k.tiles : [],
     sourcePlaylistUrl: (k && k.sourcePlaylistUrl) || null,
-    settings: { ...DEFAULT_KID_SETTINGS, ...((k && k.settings) || {}) },
+    settings,
   };
 }
 
@@ -80,7 +90,7 @@ function migrateLegacyStore(stored) {
       sleepTimerMinutes: legacySettings.sleepTimerMinutes != null ? legacySettings.sleepTimerMinutes : null,
       hideExplicit: legacySettings.hideExplicit != null ? legacySettings.hideExplicit : true,
       tileDisplay: legacySettings.tileDisplay || DEFAULT_KID_SETTINGS.tileDisplay,
-      showVisualizer: legacySettings.showVisualizer != null ? legacySettings.showVisualizer : DEFAULT_KID_SETTINGS.showVisualizer,
+      visualizerMode: legacySettings.visualizerMode || (legacySettings.showVisualizer === false ? 'off' : DEFAULT_KID_SETTINGS.visualizerMode),
     },
   };
   return { kids: [kid], activeKidId: kid.id, pinHash: legacySettings.pinHash || null, familySeeded: false };

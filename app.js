@@ -6,6 +6,7 @@ import { loadStore, saveStore, seedFamilyIfNeeded, getActiveKid, addKid, removeK
 import { createKidMode } from './kid-mode.js';
 import { createParentGate } from './parent-gate.js';
 import { createParentMode } from './parent-mode.js';
+import { alertDialog, promptDialog } from './dialog.js';
 
 const views = {
   login: document.getElementById('login-view'),
@@ -79,7 +80,7 @@ function describeRedirectUriProblem() {
       await navigator.clipboard.writeText(SPOTIFY_CONFIG.redirectUri);
       statusEl.textContent = 'Copied.';
     } catch (e) {
-      window.prompt('Copy this address:', SPOTIFY_CONFIG.redirectUri);
+      await promptDialog('Copy this address:', SPOTIFY_CONFIG.redirectUri, { title: 'Copy address', confirmLabel: 'Close', cancelLabel: '' });
     }
     setTimeout(() => (statusEl.textContent = ''), 2500);
   });
@@ -125,10 +126,12 @@ const parentMode = createParentMode({
     volumeValue: document.getElementById('volume-value'),
     accountInfo: document.getElementById('account-info'),
     scopeInfo: document.getElementById('scope-info'),
+    scopeDetails: document.getElementById('scope-details'),
     tokenWarning: document.getElementById('token-warning'),
     scopeWarning: document.getElementById('scope-warning'),
     tileCount: document.getElementById('tile-count'),
     tileCountWarning: document.getElementById('tile-count-warning'),
+    tileRemoveStatus: document.getElementById('tile-remove-status'),
     tileList: document.getElementById('tile-list'),
     colorPickerInput: document.getElementById('color-picker-input'),
     searchResults: document.getElementById('search-results'),
@@ -194,9 +197,9 @@ const parentMode = createParentMode({
     store = { ...store, pinHash };
     saveStore(store);
   },
-  onDone: () => {
+  onDone: async () => {
     if (getActiveKidConfig().tiles.length < 1) {
-      window.alert('Add at least one song before returning to kid mode.');
+      await alertDialog('Add at least one song before returning to kid mode.');
       return;
     }
     showOnly('kid');
@@ -207,7 +210,7 @@ const parentMode = createParentMode({
     window.location.reload();
   },
   onRelogin: () => {
-    auth.redirectToLogin(SPOTIFY_CONFIG).catch((e) => window.alert(e.message));
+    auth.redirectToLogin(SPOTIFY_CONFIG).catch((e) => alertDialog(e.message));
   },
   onReauthRequired: forceReauth,
 });
@@ -334,9 +337,9 @@ async function initPlayerAndKidMode() {
       showOnly('gate');
       parentGate.show();
     },
-    onToggleVisualizer: (enabled) => {
+    onToggleVisualizer: (mode) => {
       const activeId = store.activeKidId;
-      store = { ...store, kids: store.kids.map((k) => (k.id === activeId ? { ...k, settings: { ...k.settings, showVisualizer: enabled } } : k)) };
+      store = { ...store, kids: store.kids.map((k) => (k.id === activeId ? { ...k, settings: { ...k.settings, visualizerMode: mode } } : k)) };
       saveStore(store);
     },
   });
@@ -354,7 +357,7 @@ async function main() {
     try {
       window.__pendingShareLink = decodeShareLinkHash(pendingHash);
     } catch (e) {
-      window.alert('That setup link looks invalid: ' + e.message);
+      await alertDialog('That setup link looks invalid: ' + e.message);
     }
   }
 

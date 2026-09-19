@@ -1,5 +1,6 @@
 import { tileFromTrack, validateImportedConfig, encodeShareLink, hashPin } from './store.js';
 import { getLoginAgeInfo, loadTokens } from './auth.js';
+import { confirmDialog, alertDialog, promptDialog } from './dialog.js';
 
 const EMOJI_COLOR_DEFAULT = '#5b5bd6';
 const REQUIRED_PLAYLIST_SCOPE = 'playlist-read-private';
@@ -80,9 +81,9 @@ export function createParentMode({
         removeBtn.textContent = '✕';
         removeBtn.setAttribute('role', 'button');
         removeBtn.setAttribute('aria-label', `Remove ${kidLabel(kid)}`);
-        removeBtn.addEventListener('click', (e) => {
+        removeBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          if (window.confirm(`Remove ${kidLabel(kid)} and all their songs? This can’t be undone.`)) {
+          if (await confirmDialog(`Remove ${kidLabel(kid)} and all their songs? This can’t be undone.`, { title: 'Remove kid', confirmLabel: 'Remove', danger: true })) {
             onRemoveKid(kid.id);
           }
         });
@@ -94,9 +95,9 @@ export function createParentMode({
     });
   }
 
-  function switchKid(kidId) {
+  async function switchKid(kidId) {
     if (kidId === getActiveKidId()) return;
-    if (hasUnsavedChanges() && !window.confirm('Switch kids without saving changes first?')) return;
+    if (hasUnsavedChanges() && !(await confirmDialog('Switch kids without saving changes first?'))) return;
     onSwitchKid(kidId);
   }
 
@@ -125,7 +126,12 @@ export function createParentMode({
     // again" fix for a missing scope has a real failure mode of its own
     // (Spotify silently reusing a prior consent instead of granting the
     // newly-requested one), so whether that actually worked needs to be
-    // directly checkable rather than inferred from yet another guess.
+    // directly checkable rather than inferred from yet another guess. But
+    // raw scope identifiers are pure developer jargon, so it's tucked
+    // behind a collapsed "Technical details" disclosure (same pattern as
+    // the login screen's own troubleshooting section) instead of dumped in
+    // front of every parent on every visit.
+    els.scopeDetails.hidden = !(tokens && tokens.scope);
     els.scopeInfo.textContent = tokens && tokens.scope ? `Permissions granted: ${tokens.scope}` : '';
     const missingPlaylistScope = !grantedScopes.split(' ').includes(REQUIRED_PLAYLIST_SCOPE);
     els.scopeWarning.hidden = !missingPlaylistScope;
@@ -142,6 +148,42 @@ export function createParentMode({
     if (tooFew) {
       els.tileCountWarning.textContent = 'Add at least one song.';
     }
+  }
+
+  let pendingRemoveUndoTimer = null;
+
+  function clearRemoveUndoStatus() {
+    if (pendingRemoveUndoTimer) clearTimeout(pendingRemoveUndoTimer);
+    pendingRemoveUndoTimer = null;
+    els.tileRemoveStatus.hidden = true;
+    els.tileRemoveStatus.innerHTML = '';
+  }
+
+  // A single tap permanently dropping a song with no recourse felt too easy
+  // to trigger by accident while actively curating a list — but unlike kid
+  // removal or a full playlist replace (both confirmDialog-gated below),
+  // both rare and high-stakes, removing one song is common enough during
+  // normal editing that a blocking confirm on every tap would be its own
+  // annoyance. A brief, non-blocking undo covers the mis-tap instead.
+  function removeTileWithUndo(index) {
+    const [removed] = draft.tiles.splice(index, 1);
+    renderTileList();
+
+    clearRemoveUndoStatus();
+    els.tileRemoveStatus.hidden = false;
+    const text = document.createElement('span');
+    text.textContent = `Removed “${removed.title || removed.uri}.”`;
+    const undoBtn = document.createElement('button');
+    undoBtn.type = 'button';
+    undoBtn.textContent = 'Undo';
+    undoBtn.addEventListener('click', () => {
+      draft.tiles.splice(index, 0, removed);
+      renderTileList();
+      clearRemoveUndoStatus();
+    });
+    els.tileRemoveStatus.appendChild(text);
+    els.tileRemoveStatus.appendChild(undoBtn);
+    pendingRemoveUndoTimer = setTimeout(clearRemoveUndoStatus, 6000);
   }
 
   function renderTileList() {
@@ -162,6 +204,8 @@ export function createParentMode({
         thumb.textContent = tile.override.emoji;
       } else if (tile.albumArtUrl) {
         thumb.style.backgroundImage = `url("${tile.albumArtUrl}")`;
+      } else {
+        thumb.textContent = '🎵';
       }
 
       const meta = document.createElement('div');
@@ -178,6 +222,8 @@ export function createParentMode({
         const badge = document.createElement('span');
         badge.className = 'explicit-badge';
         badge.textContent = 'E';
+        badge.setAttribute('aria-label', 'Explicit lyrics');
+        badge.title = 'Explicit lyrics';
         meta.appendChild(badge);
       }
 
@@ -193,11 +239,7 @@ export function createParentMode({
       removeBtn.className = 'tile-action-btn tile-remove-btn';
       removeBtn.textContent = '✕';
       removeBtn.setAttribute('aria-label', 'Remove');
-      removeBtn.addEventListener('click', () => {
-        draft.tiles.splice(index, 1);
-        renderTileList();
-        renderTileCount();
-      });
+      removeBtn.addEventListener('click', () => removeTileWithUndo(index));
 
       li.appendChild(handle);
       li.appendChild(thumb);
@@ -210,9 +252,9 @@ export function createParentMode({
     setupDragReorder();
   }
 
-  function openOverrideEditor(index) {
+  async function openOverrideEditor(index) {
     const tile = draft.tiles[index];
-    const emoji = window.prompt('Emoji for this tile (leave blank to use album art instead):', tile.override ? tile.override.emoji : '');
+    const emoji = await promptDialog('Emoji for this tile (leave blank to use album art instead):', tile.override ? tile.override.emoji : '', { title: 'Tile emoji' });
     if (emoji === null) return;
     if (emoji.trim() === '') {
       tile.override = null;
@@ -288,6 +330,7 @@ export function createParentMode({
     thumb.className = 'tile-thumb';
     const art = track.album && track.album.images && track.album.images[0];
     if (art) thumb.style.backgroundImage = `url("${art.url}")`;
+    else thumb.textContent = '🎵';
 
     const meta = document.createElement('div');
     meta.className = 'tile-meta';
@@ -303,6 +346,8 @@ export function createParentMode({
       const badge = document.createElement('span');
       badge.className = 'explicit-badge';
       badge.textContent = 'E';
+      badge.setAttribute('aria-label', 'Explicit lyrics');
+      badge.title = 'Explicit lyrics';
       meta.appendChild(badge);
     }
 
@@ -330,6 +375,16 @@ export function createParentMode({
   function renderResults(tracks, container) {
     container.innerHTML = '';
     tracks.forEach((t) => renderResultRow(t, container));
+    // renderResultRow silently skips explicit tracks under the same
+    // condition when hideExplicit is on — without this, a hidden result
+    // just looks like a song that isn't on Spotify at all.
+    const hiddenCount = draft.settings.hideExplicit ? tracks.filter((t) => t.explicit).length : 0;
+    if (hiddenCount > 0) {
+      const note = document.createElement('div');
+      note.className = 'muted explicit-hidden-note';
+      note.textContent = `${hiddenCount} explicit result${hiddenCount === 1 ? '' : 's'} hidden — turn off “Hide explicit tracks” in Settings to see them.`;
+      container.appendChild(note);
+    }
   }
 
   async function runSearch(reset) {
@@ -429,7 +484,7 @@ export function createParentMode({
       return;
     }
     if (draft.tiles.length > 0) {
-      const ok = window.confirm(`This replaces your current ${draft.tiles.length} song(s) with tracks from this playlist. Continue?`);
+      const ok = await confirmDialog(`This replaces your current ${draft.tiles.length} song(s) with tracks from this playlist. Continue?`, { title: 'Replace songs?' });
       if (!ok) return;
     }
     els.quickPlaylistStatus.textContent = 'Loading…';
@@ -509,17 +564,17 @@ export function createParentMode({
       renderResults(lastPlaylistResults, els.playlistResults);
     });
     els.changePinBtn.addEventListener('click', async () => {
-      const pin = window.prompt('New 4-digit PIN:');
+      const pin = await promptDialog('New 4-digit PIN:', '', { title: 'Change PIN', inputMode: 'numeric' });
       if (pin === null) return;
       if (!/^\d{4}$/.test(pin)) {
-        window.alert('PIN must be exactly 4 digits.');
+        await alertDialog('PIN must be exactly 4 digits.');
         return;
       }
       // Shared by the whole device (it gates parent mode itself, before any
       // kid is picked) rather than part of a kid's own draft, so this takes
       // effect right away instead of waiting on that kid's Save.
       await onChangePin(await hashPin(pin));
-      window.alert('PIN updated.');
+      await alertDialog('PIN updated.');
     });
   }
 
@@ -548,9 +603,9 @@ export function createParentMode({
   }
 
   function bindSaveActions() {
-    els.saveBtn.addEventListener('click', () => {
+    els.saveBtn.addEventListener('click', async () => {
       if (draft.tiles.length < 1) {
-        window.alert('Add at least one song before saving.');
+        await alertDialog('Add at least one song before saving.');
         return;
       }
       saveAndApply(draft);
@@ -585,13 +640,13 @@ export function createParentMode({
         renderQuickPlaylistLink();
         els.saveStatus.textContent = 'Imported — tap Save to apply.';
       } catch (e) {
-        window.alert('Couldn’t import that file: ' + e.message);
+        await alertDialog('Couldn’t import that file: ' + e.message);
       }
     });
 
     els.copyLinkBtn.addEventListener('click', async () => {
       if (draft.tiles.length < 1) {
-        window.alert('Add at least one song first.');
+        await alertDialog('Add at least one song first.');
         return;
       }
       const link = encodeShareLink(draft);
@@ -599,13 +654,13 @@ export function createParentMode({
         await navigator.clipboard.writeText(link);
         els.saveStatus.textContent = 'Setup link copied.';
       } catch (e) {
-        window.prompt('Copy this link:', link);
+        await promptDialog('Copy this link:', link, { title: 'Setup link', cancelLabel: '' });
       }
       setTimeout(() => (els.saveStatus.textContent = ''), 2500);
     });
 
-    function handleDoneClick() {
-      if (hasUnsavedChanges() && !window.confirm('Discard unsaved changes?')) return;
+    async function handleDoneClick() {
+      if (hasUnsavedChanges() && !(await confirmDialog('Discard unsaved changes?', { title: 'Discard changes?' }))) return;
       onDone();
     }
     els.doneBtn.addEventListener('click', handleDoneClick);
@@ -616,8 +671,8 @@ export function createParentMode({
   }
 
   els.quickPlaylistBtn.addEventListener('click', quickSetupFromPlaylist);
-  els.addKidBtn.addEventListener('click', () => {
-    const name = window.prompt('New kid’s name:');
+  els.addKidBtn.addEventListener('click', async () => {
+    const name = await promptDialog('New kid’s name:', '', { title: 'Add a kid' });
     if (name === null) return;
     onAddKid(name.trim());
   });
@@ -637,6 +692,7 @@ export function createParentMode({
     // draft again and discarding whatever's being edited in the meantime.
     show(profile) {
       draft = JSON.parse(JSON.stringify(getSavedConfig()));
+      clearRemoveUndoStatus();
       renderAccount(profile);
       renderKidTabs();
       renderTileList();

@@ -45,6 +45,7 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
   // hiding the now-playing bar — if it's not one of this kid's songs.
   let activeTrackUri = null;
   let holdTimer = null;
+  let holdStartedAt = null;
   let sleepTimerHandle = null;
   let fadeIntervalHandle = null;
   let progressTickHandle = null;
@@ -67,6 +68,15 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
       btn.appendChild(span);
     } else if (tile.albumArtUrl) {
       btn.style.backgroundImage = `url("${tile.albumArtUrl}")`;
+    } else {
+      // A track with no art and no manual override used to leave the tile
+      // completely blank — just a flat color square with no clue what it
+      // is. A plain music-note reads as "this is a song" instead of "this
+      // button is broken."
+      const span = document.createElement('span');
+      span.className = 'kid-tile-emoji kid-tile-emoji-fallback';
+      span.textContent = '🎵';
+      btn.appendChild(span);
     }
 
     if (displayMode === 'simple') {
@@ -159,6 +169,17 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
     });
   }
 
+  // Only for a deliberate "I'm done" moment (the stop button, the sleep
+  // timer finishing) — NOT folded into closeNowPlaying() itself, which
+  // also runs on a kid switch or leaving for parent mode, where whatever
+  // was playing may still genuinely be playing in the background and
+  // should keep showing as active once kid mode comes back.
+  function clearNowPlayingTile() {
+    activeTileIndex = -1;
+    activeTrackUri = null;
+    updateActiveTileVisual();
+  }
+
   // Phase 0 only ever proved one shape of play request reliable on the
   // target tablet: a single track, `playTracks([uri], 0)` (see spike/app.js).
   // "Continue to next tile" (the default) instead queues every tile in the
@@ -226,17 +247,23 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
   }
 
   // The visualizer is a per-kid preference (like tileDisplay or
-  // hideExplicit) but, unlike those, it's flipped from a single tap on the
+  // hideExplicit) but, unlike those, it's cycled from a single tap on the
   // now-playing bar rather than edited as a draft in parent mode and
   // committed with Save — there's nothing to confirm, so it takes effect
-  // and persists immediately, the same way onChangePin does. One setting
-  // governs both visual surfaces (the now-playing strip and the tile-grid
-  // backdrop) — it's one feature with two views of the same thing, not two
-  // separate toggles to keep in sync.
+  // and persists immediately, the same way onChangePin does. One tap
+  // cycles off -> subtle -> winamp -> off, the same click-to-cycle feel
+  // real Winamp's visualizer had, and one setting governs both visual
+  // surfaces (the now-playing strip and the tile-grid backdrop) — it's one
+  // feature with two views of the same thing, not two toggles to keep in
+  // sync. Only the backdrop's own rendering changes between subtle/winamp;
+  // the strip is already a fully-lit display, so it just turns on or off.
   function refreshVisualizers() {
-    const enabled = !!getConfig().settings.showVisualizer;
+    const mode = getConfig().settings.visualizerMode;
+    const enabled = mode !== 'off';
     els.vizToggleBtn.setAttribute('aria-pressed', String(enabled));
     els.vizToggleBtn.classList.toggle('is-active', enabled);
+    els.vizToggleBtn.classList.toggle('is-winamp', mode === 'winamp');
+    els.vizToggleBtn.setAttribute('aria-label', `Music visualizer: ${mode === 'off' ? 'off, tap for subtle' : mode === 'subtle' ? 'subtle, tap for winamp mode' : 'winamp mode, tap to turn off'}`);
 
     // Now-playing strip: only makes sense while that overlay is open.
     if (enabled && !els.overlay.hidden) {
@@ -253,6 +280,7 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
     // the player state listener below) is what makes it glow only while
     // something's actually playing versus sitting quietly at rest.
     if (enabled) {
+      bgVisualizer.setVariant(mode === 'winamp' ? 'winamp-backdrop' : 'ambient-backdrop');
       els.bgVisualizerCanvas.hidden = false;
       bgVisualizer.start();
     } else {
@@ -291,6 +319,11 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
       els.npArt.appendChild(span);
     } else if (tile.albumArtUrl) {
       els.npArt.style.backgroundImage = `url("${tile.albumArtUrl}")`;
+    } else {
+      const span = document.createElement('span');
+      span.className = 'kid-tile-emoji-fallback np-emoji';
+      span.textContent = '🎵';
+      els.npArt.appendChild(span);
     }
   }
 
@@ -335,6 +368,7 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
         clearInterval(fadeIntervalHandle);
         fadeIntervalHandle = null;
         player.pause().catch(() => {});
+        clearNowPlayingTile();
       }
     }, FADE_MS / steps);
   }
@@ -357,15 +391,28 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
 
   function startHold() {
     els.parentGateBtn.classList.add('is-holding');
-    holdTimer = setTimeout(() => {
-      els.parentGateBtn.classList.remove('is-holding');
-      onOpenParentGate();
-    }, HOLD_MS);
+    holdStartedAt = performance.now();
+    holdTimer = setTimeout(endHold, HOLD_MS);
   }
-  function cancelHold() {
-    if (holdTimer) clearTimeout(holdTimer);
-    holdTimer = null;
+  // Bound to the timer firing on schedule AND to pointerup/leave/cancel —
+  // whichever comes first normally wins, but under heavy main-thread load
+  // (two visualizer rAF loops repainting full-screen canvases while a song
+  // plays) the timer callback can land late enough that the pointer's own
+  // release event fires first even though the hold genuinely lasted long
+  // enough. Judging by elapsed time rather than by which event happened to
+  // arrive first means a real HOLD_MS-long press always opens the gate
+  // regardless of that race — this is the parent's only way into PIN-
+  // protected settings, so it shouldn't be able to silently drop a
+  // successful hold under load.
+  function endHold() {
     els.parentGateBtn.classList.remove('is-holding');
+    if (holdTimer) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
+    }
+    const heldLongEnough = holdStartedAt !== null && performance.now() - holdStartedAt >= HOLD_MS;
+    holdStartedAt = null;
+    if (heldLongEnough) onOpenParentGate();
   }
 
   player.onStateChange((state) => {
@@ -423,19 +470,23 @@ export function createKidMode({ els, player, getConfig, onOpenParentGate, onTogg
   });
 
   els.parentGateBtn.addEventListener('pointerdown', startHold);
-  els.parentGateBtn.addEventListener('pointerup', cancelHold);
-  els.parentGateBtn.addEventListener('pointerleave', cancelHold);
-  els.parentGateBtn.addEventListener('pointercancel', cancelHold);
+  els.parentGateBtn.addEventListener('pointerup', endHold);
+  els.parentGateBtn.addEventListener('pointerleave', endHold);
+  els.parentGateBtn.addEventListener('pointercancel', endHold);
   els.backBtn.addEventListener('click', () => {
     // Used to only hide this bar while the song kept playing out of sight —
     // easy to mistake for a button that does nothing at all. Pausing first
-    // gives it an effect a kid can actually hear.
+    // gives it an effect a kid can actually hear, and clearing the tile
+    // stops it from bouncing/glowing as "playing" forever afterward.
     player.pause().catch(() => {});
+    clearNowPlayingTile();
     closeNowPlaying();
   });
   els.playPause.addEventListener('click', handlePlayPauseTap);
   els.vizToggleBtn.addEventListener('click', () => {
-    onToggleVisualizer(!getConfig().settings.showVisualizer);
+    const order = ['off', 'subtle', 'winamp'];
+    const current = order.indexOf(getConfig().settings.visualizerMode);
+    onToggleVisualizer(order[(Math.max(current, 0) + 1) % order.length]);
     refreshVisualizers();
   });
 

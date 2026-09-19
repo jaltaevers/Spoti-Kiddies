@@ -161,9 +161,12 @@
         <section class="parent-section">
           <h2>Account</h2>
           <div id="account-info"></div>
-          <div id="scope-info" class="muted"></div>
           <div id="token-warning" class="warning" hidden></div>
           <div id="scope-warning" class="warning" hidden></div>
+          <details id="scope-details" class="scope-details" hidden>
+            <summary>Technical details</summary>
+            <div id="scope-info" class="muted"></div>
+          </details>
           <div class="row-actions">
             <button id="logout-btn" class="small-btn">Log out</button>
             <button id="relogin-btn" class="small-btn">Log in again</button>
@@ -173,6 +176,7 @@
         <section class="parent-section">
           <h2>Songs (<span id="tile-count">0</span>)</h2>
           <div id="tile-count-warning" class="warning" hidden></div>
+          <div id="tile-remove-status" class="tile-remove-status" role="status" aria-live="polite" hidden></div>
           <ul id="tile-list" class="tile-list"></ul>
         </section>
 
@@ -230,19 +234,44 @@
           <button id="change-pin-btn" class="small-btn">Change PIN</button>
         </section>
 
-        <section class="parent-section">
-          <div class="row-actions">
-            <button id="save-btn" class="big-btn">Save</button>
-            <button id="parent-done-btn-bottom" class="small-btn">Done</button>
-            <button id="export-btn" class="small-btn">Export</button>
-            <button id="import-btn" class="small-btn">Import</button>
-            <button id="copy-link-btn" class="small-btn">Copy setup link</button>
+        <section class="parent-section bottom-actions-section">
+          <button id="save-btn" class="big-btn full-width-btn">Save</button>
+          <div id="save-status" class="muted save-status" aria-live="polite"></div>
+
+          <div class="backup-actions">
+            <h3 class="action-group-label">Back up &amp; share this setup</h3>
+            <div class="row-actions">
+              <button id="export-btn" class="small-btn">Export</button>
+              <button id="import-btn" class="small-btn">Import</button>
+              <button id="copy-link-btn" class="small-btn">Copy setup link</button>
+            </div>
           </div>
+
+          <button id="parent-done-btn-bottom" class="small-btn done-btn-bottom">Done</button>
+
           <input id="import-file-input" type="file" accept="application/json" hidden />
           <input id="color-picker-input" type="color" hidden />
-          <div id="save-status" class="muted"></div>
         </section>
       </section>
+
+      <!--
+        Replaces window.confirm/alert/prompt everywhere in the app: those
+        render as unstyled native browser chrome, which clashes hard with
+        an otherwise fully custom UI in both kid and parent mode. Sits
+        outside every .view on purpose so it works no matter which one is
+        currently showing. See dialog.js.
+      -->
+      <div id="app-modal-backdrop" class="app-modal-backdrop" hidden>
+        <div id="app-modal" class="app-modal" role="alertdialog" aria-modal="true" aria-labelledby="app-modal-title">
+          <h3 id="app-modal-title"></h3>
+          <p id="app-modal-message"></p>
+          <input id="app-modal-input" class="text-input app-modal-input" hidden />
+          <div class="app-modal-actions">
+            <button type="button" id="app-modal-cancel-btn" class="small-btn"></button>
+            <button type="button" id="app-modal-confirm-btn" class="big-btn"></button>
+          </div>
+        </div>
+      </div>
     </main>
 
     <script>
